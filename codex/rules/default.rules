@@ -1,0 +1,51 @@
+# Block clearly destructive git/file-system commands by default.
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Do not discard repo state with hard reset. Use non-destructive git inspection first.",
+    match = [
+        "git reset --hard",
+        "git reset --hard HEAD~1",
+    ],
+)
+
+prefix_rule(
+    pattern = ["git", "checkout", "--"],
+    decision = "forbidden",
+    justification = "Do not discard file changes with checkout --. Edit or revert intentionally instead.",
+    match = [
+        "git checkout -- AGENTS.md",
+        "git checkout -- business/build_plan_docx.py",
+    ],
+)
+
+prefix_rule(
+    pattern = ["rm", "-rf"],
+    decision = "forbidden",
+    justification = "Recursive force delete is blocked. Remove files intentionally and review the target first.",
+    match = [
+        "rm -rf tmp",
+        "rm -rf /",
+    ],
+)
+
+# Prompt before running compound shell wrappers outside the sandbox.
+prefix_rule(
+    pattern = [["powershell", "powershell.exe"], ["-Command", "-c"]],
+    decision = "prompt",
+    justification = "Compound PowerShell commands can hide multiple actions. Review before running outside the sandbox.",
+    match = [
+        "powershell.exe -Command Get-ChildItem",
+        "powershell -c Get-Process",
+    ],
+)
+
+prefix_rule(
+    pattern = [["bash", "sh", "zsh"], ["-lc", "-c"]],
+    decision = "prompt",
+    justification = "Compound shell commands should be reviewed before running outside the sandbox.",
+    match = [
+        "bash -lc ls",
+        "sh -c pwd",
+    ],
+)
