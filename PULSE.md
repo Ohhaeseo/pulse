@@ -1,106 +1,468 @@
-# PULSE: Project Knowledge Base (Antigravity Optimized)
+# PULSE Codebase Briefing
 
-> **Role & Purpose**: This document serves as the **Single Source of Truth** for the PULSE project. It contains the project vision, core logic, feature specifications, and technical implementation details required for an AI agent to autonomously understand and develop the system.
-
----
-
-## 1. Project Identity (Essence)
-
-**PULSE** uses AI to automate the marketing loop for restaurant owners who lack time, knowledge, and resources.
-It transforms the marketing process from "Owner does everything" to **"System suggests, Owner approves"**.
-
-### Core Philosophy
-1.  **Action-Centric**: Don't just show data; suggest the next step.
-2.  **Single Loop**: Understand → Create → Evaluate. Keep it simple.
-3.  **No Scroll Policy**: All key information must be visible without scrolling on the main dashboard.
-4.  **Premium Aesthetic**: Use Deep Blue & Vivid Orange with glassmorphism for a high-end feel.
+> 기준일: 2026-03-18
+>
+> 이 문서는 현재 `PULSE` 코드베이스를 실제 구현 기준으로 다시 정리한 최신 기능 브리핑입니다.
+> 기획 문서에 적혀 있지 않더라도, 프론트엔드/백엔드/AI 서버 코드에서 확인되는 기능과 상태를 우선으로 기록합니다.
 
 ---
 
-## 2. Technical Specification (Implementation Context)
+## 1. 서비스 한 줄 정의
 
-### 2.1 Technology Stack
-- **Framework**: React (Vite)
-- **Styling**: Tailwind CSS (Vanilla CSS for specific animations)
-- **Animation**: Framer Motion
-- **Charts**: Recharts
-- **Icons**: Lucide React
-- **Language**: JavaScript (ES6+)
+**PULSE**는 외식업 자영업자를 위한 AI 마케팅 운영 서비스입니다.
 
-### 2.2 Directory Mapping (Source of Truth)
-| Logic Layer | Directory Path | Key Components |
-| :--- | :--- | :--- |
-| **Dashboard** | `src/features/dashboard` | `DashboardHome.jsx` (Metrics, Weather), `SeasonAlert.jsx` |
-| **Insight** | `src/features/insight` | `UnifiedInsightPage.jsx` (List/Detail), `LocalAnalysisSection.jsx` (Macro), `JourneyMapSection.jsx` (Micro) |
-| **Promotion** | `src/features/promotion` | `PromotionPage.jsx`, `VideoCreator.jsx` (Storyboard/Result) |
-| **Common** | `src/components/layout` | `DashboardLayout.jsx` (Side/Header), `Sidebar.jsx`, `Header.jsx` (Inline Chat) |
-| **Navigation** | `src/App.jsx` | Routing configuration |
+핵심 루프는 아래 3단계입니다.
+
+1. `손님 이해`
+2. `홍보 콘텐츠 생성`
+3. `가게 현황 확인 및 다음 액션 제안`
+
+여기에 확장 기능으로 `리뷰 운영`, `인플루언서 매칭`, `구독 플랜`, `마이페이지`가 붙어 있습니다.
 
 ---
 
-## 3. Core Logic (The Marketing Loop)
+## 2. 현재 시스템 구조
 
-The user experience is defined by a continuous loop of three stages.
+### 2.1 프론트엔드
 
-### Stage 1: Understand (손님 마음 읽기)
-- **Goal**: Analyze reviews and local trends to determine *what* to market.
-- **Input**: Online Reviews, Local Market Data.
-- **Mechanism**:
-    - **Unified View**: Users select between **Macro (Local Market)** and **Micro (Persona)** analysis.
-    - **Persona Card**: Represents a customer segment (e.g., "Hangover Soup Lover", "Cost-effective Worker").
-    - **Header Chat**: Interactive AI assistant located in the top-right header (InlineChat) to answer questions about data.
-- **Output (Context)**: Passes `Target Persona` + `Vibe` to the next stage.
+- 경로: `pulse_FE`
+- 스택: React 18, Vite, Tailwind CSS, Framer Motion, Recharts, Three.js, React Router
+- 역할:
+  - 사용자 화면
+  - 인증 UI
+  - 대시보드
+  - 손님 분석
+  - 홍보 영상 생성 UX
+  - 리뷰 관리 UX
+  - 인플루언서 매칭 UX
+  - 구독/마이페이지
 
-### Stage 2: Create (홍보 영상 만들기)
-- **Goal**: Produce a high-quality short-form video (Reel) based on Stage 1 insights.
-- **Input**:
-    - **Context** (Auto-filled): Target, Vibe, Recommended Title.
-    - **User Asset**: Photos uploaded by the owner.
-- **Mechanism**:
-    - **Context-Aware Navigation**: Navigating from Insight/Dashboard pre-fills the video creation settings.
-    - **AI Storyboard**: Auto-generates a plan (Hook -> Body -> Outro).
-    - **One-Click Generation**: Creates a vertical (9:16) video with music and captions.
-- **Output**: `.mp4` video file ready for Instagram/YouTube.
+### 2.2 메인 백엔드
 
-### Stage 3: Evaluate & Action (우리 가게 현황)
-- **Goal**: Review performance and prompt the next cycle.
-- **Mechanism**:
-    - **Action-Centric Dashboard**: Displays "Store Briefing" (Weather/Season) and "Traffic Trends" (Visitors/Search).
-    - **Hero Section**: A centralized "AI Suggestion Card" that prompts a specific action (e.g., "Rainy day -> Make Pijeon Video").
-    - **Loop Back**: Clicking the suggestion immediately leads back to **Stage 2 (Create)**.
+- 경로: `pulse_spring`
+- 스택: Spring Boot, Spring Security, JPA, JWT
+- 현재 역할:
+  - 회원가입/로그인
+  - 사용자/가게 저장
+  - 회원가입 직후 AI 분석 트리거
 
----
+### 2.3 AI 서버
 
-## 4. UI/UX Design System
-
-### 4.1 Color Palette
-- **Primary**: Deep Blue (`#002B7A`) - Trust, Stability.
-- **Action**: Vivid Orange (`#FF5A36`) - Buttons, Alerts, Calls to Action.
-- **Background**: Cool Gray (`#F5F7FA`) - Reduced eye strain.
-
-### 4.2 Component Styling
-- **Rounded Corners**:
-    - Containers: `24px`
-    - Start Buttons: `Full Rounded`
-    - Inner Elements: `12px`
-- **Shadows**: Soft, diffused shadows (`0 4px 20px rgba(0, 43, 122, 0.15)`) to create depth.
-- **Layout**: Split screen (Left: Navigation/List, Right: Detail/Workspace) to minimize page transitions.
+- 경로: `pulse_python`
+- 스택: FastAPI, Playwright, BERTopic, Kiwi, SentenceTransformer, OpenAI, MongoDB
+- 현재 역할:
+  - 리뷰 수집
+  - 리뷰 토픽 분석
+  - 페르소나/고객 여정 생성
+  - 결과 저장 및 최신 결과 제공
 
 ---
 
-## 5. Vision & Roadmap (Future Scope)
+## 3. 사용자 기준 기능 지도
 
-> **Note**: The following features are defined in the vision but are **not currently implemented** in the MVP code.
+### 3.1 인증
 
-1.  **Influencer Matching (Pro)**: A dedicated loop for matching owners with food creators. (Currently conceptual).
-2.  **Review Management**: Auto-reply and sentiment analysis hub. (Currently conceptual).
-3.  **PULSE Score**: gamified marketing score.
+구현된 흐름:
+
+- 로그인 페이지
+- 회원가입 2단계 폼
+- 주소 검색 연동
+- 비밀번호 규칙 검증
+- 회원가입 후 로딩/진행 메시지 표시
+
+실제 중요한 숨은 동작:
+
+- 회원가입이 끝나면 단순 계정 생성으로 끝나지 않습니다.
+- Spring이 가게를 `PENDING` 상태로 저장한 뒤, FastAPI 서버에 리뷰 분석을 비동기로 요청합니다.
+- 즉, 가입 자체가 `첫 분석 파이프라인 시작 버튼` 역할을 합니다.
+
+현재 상태 메모:
+
+- 프론트 로그인 화면은 아직 목업 로그인 비중이 큽니다.
+- `ProtectedRoute`도 `DEV_MODE = true`라서 개발 중에는 인증 없이 바로 통과합니다.
+- 프론트 `login` API URL은 `/api/login`이 아니라 `/api/auth/login`이어야 할 가능성이 큽니다.
 
 ---
 
-## 6. Agent Rules (Constraint Checklist)
+### 3.2 가게 현황 대시보드
 
-- [ ] **Never break the loop**: Always ensure a feature leads to the next logical step.
-- [ ] **Preserve the aesthetic**: Do not introduce new colors outside the palette without reason.
-- [ ] **Respect the functionality**: Do not hallucinate features (like Influencer Matching) as "working" if they are not in the `src` folder. Describe them as "planned".
-- [ ] **Language**: All user-facing text must be in **Korean**.
+#### A. AS-IS 대시보드
+
+구현된 요소:
+
+- 날씨/계절 카드
+- 매장 브리핑
+- 검색량/방문량 추이 차트
+- 오늘의 AI 마케팅 제안
+- 손님 분석 페이지, 홍보 영상 페이지로 바로 이동하는 CTA
+
+특징:
+
+- 강한 마케팅 액션 유도형 홈 화면입니다.
+- 단순 통계판이 아니라 "지금 무엇을 해야 하는가"를 바로 밀어줍니다.
+
+#### B. 가게 현황 V2
+
+구현된 요소:
+
+- Core KPI strip
+- 오늘의 요약 브리프
+- AI 제안 카드
+- 운영 액션 카드
+- 페르소나 요약
+- 날씨 위젯
+- 키워드 묶음
+- 추세 차트
+
+실제 상태:
+
+- UX 완성도는 높습니다.
+- 하지만 데이터는 현재 `dashboardV2Api.js`의 시뮬레이션 응답을 사용합니다.
+- 즉, 구조는 잘 짜여 있지만 실데이터 연동은 아직 목업 단계입니다.
+
+---
+
+### 3.3 손님 분석
+
+구현된 핵심:
+
+- `UnifiedInsightPage` 중심 구조
+- 최신 분석 결과를 FastAPI의 `/api/analysis/latest`에서 불러옴
+- 좌측: 페르소나 리스트
+- 우측: 선택한 페르소나 상세
+- 고객 여정 맵 표시
+- 바로 홍보 영상 만들기로 연결
+
+분석 결과로 실제 내려오는 정보:
+
+- 가게 한 줄 요약
+- 평균 평점
+- 총 리뷰 수
+- 페르소나 목록
+- 각 페르소나의 요약
+- 고객 여정 4단계
+  - 탐색
+  - 방문
+  - 식사
+  - 공유
+
+숨은 강점:
+
+- AI 서버는 단순 키워드 추출이 아니라 한국어 형태소 분석 + 임베딩 + BERTopic 기반으로 토픽을 잡습니다.
+- 그 위에 LLM이 페르소나와 여정 맵, 액션 제안까지 생성합니다.
+
+현재 상태:
+
+- 실연동 핵심 기능입니다.
+- 다만 FastAPI 응답이 없을 때 프론트는 풍부한 목업 데이터로 자연스럽게 fallback 합니다.
+
+---
+
+### 3.4 주변 상권 분석
+
+구현된 핵심:
+
+- 카카오 지도 기반 상권 분석 화면
+- 반경 조절
+- 카카오 Places API 기반 카테고리 검색
+- 경쟁 업장 목록
+- 상권 밀도 계산
+- 앵커 시설 점수 계산
+- 지도 pan 이동
+
+실제 계산 로직:
+
+- 음식점, 카페, 병원, 학교, 지하철 등 여러 카테고리를 병렬 조회
+- 카테고리별 개수 집계
+- 주요 경쟁 업장 거리순 정렬
+- 상권 타입 분류
+  - 역세권형
+  - 학원가형
+  - 의료상권형
+  - 복합상권형
+  - 일반상권형
+
+현재 상태:
+
+- 실시간 지도/검색 구조는 실제입니다.
+- 다만 매장 좌표는 아직 `MOCK_STORE` 기준입니다.
+- 즉, 엔진은 살아 있고 입력 데이터 연결만 덜 끝난 상태입니다.
+
+---
+
+### 3.5 홍보 영상 만들기
+
+구현된 핵심:
+
+- 이미지 업로드
+- 타깃 페르소나 선택
+- 분위기 선택
+  - energetic
+  - luxury
+  - emotional
+- 프롬프트 편집
+- 스토리보드 확인
+- 로딩 진행률 표시
+- 결과 영상 재생
+- 제목/해시태그 표시
+
+숨은 기능:
+
+- 다른 메뉴에서 넘어올 때 `personaId`, `title`, `prompt`, `vibe`를 자동 주입합니다.
+- 즉, 손님 분석 결과가 바로 영상 제작 설정값으로 이어집니다.
+- 내부에 `VEO3 payload` 생성용 구조도 이미 들어 있습니다.
+- 품질 모드, 스타일 매핑, 진행률 polling 구조도 갖춰져 있습니다.
+
+현재 상태:
+
+- UX는 상당히 깊게 구현돼 있습니다.
+- 실제 API가 연결되지 않으면 목업 progress와 샘플 영상으로 fallback 합니다.
+- 백엔드 `/api/info/generate`, `/api/info/status/{task_id}`를 기대하지만 현재 메인 백엔드/AI 서버에는 해당 엔드포인트가 없습니다.
+- 즉, 영상 제작은 `프론트 프로토타입 고도화 상태`입니다.
+
+---
+
+### 3.6 리뷰 관리 및 답변
+
+구현된 기능:
+
+- 리뷰 요약 카드
+- 최근 리뷰 목록
+- 빠른 설정
+  - 말투
+  - 길이
+  - 감사 인사 포함 여부
+  - 좋은 하루 문구 포함 여부
+  - 이모지 사용 여부
+  - 브랜드 프리셋
+  - 추가 요청
+- 템플릿 저장 UI
+- 답변 재생성/복사/편집 UI
+
+숨은 기능:
+
+- Python `llm_service.py`에는 실제 `generate_review_reply()` 함수가 있습니다.
+- 즉, 백엔드 LLM 기능은 있는데 프론트는 아직 목업 답변을 쓰는 상태입니다.
+
+현재 상태:
+
+- 운영 UI는 잘 만들어져 있습니다.
+- 실제 답변 생성 API까지는 아직 미연동입니다.
+- 따라서 `기획은 깊고, 연동은 다음 단계`인 영역입니다.
+
+---
+
+### 3.7 인플루언서 매칭
+
+구현된 기능:
+
+- 카테고리 필터
+- 검색
+- AI 매칭 점수 기반 리스트
+- 프로필 상세 모달
+- 제안 요청 페이지
+- 보낸 제안함 drawer
+
+숨은 기능:
+
+- 제안 요청 작성 시 AI 제안문 자동 생성 버튼이 있습니다.
+- 보낸 요청은 `localStorage`에 저장되어 다시 열람할 수 있습니다.
+- 매칭 점수, 이유, 포트폴리오, 활동 지역, 응답 시간 등까지 목업 데이터가 매우 세밀합니다.
+
+현재 상태:
+
+- UX/운영 흐름은 거의 서비스 수준으로 설계돼 있습니다.
+- 데이터는 `mockInfluencers.js` 기반입니다.
+- `CURRENT_USER_PLAN = "Pro"`로 되어 있어 현재는 Pro 차단이 사실상 해제된 상태입니다.
+
+---
+
+### 3.8 구독 플랜
+
+구현된 기능:
+
+- Basic / Growth / Pro 3단 요금제
+- 월간/연간 토글
+- 사회적 증거 문구
+- FAQ
+- 업그레이드 유도 화면
+
+플랜에 반영된 서비스 구조:
+
+- Basic: 대시보드, 상권 요약, 제한적 영상 생성
+- Growth: 손님 분석, AI 코치, 리뷰 답변, 더 많은 영상 생성
+- Pro: 인플루언서 매칭, 4K 영상, 경쟁 분석, 다점포 관리
+
+현재 상태:
+
+- BM 설명과 UI는 준비되어 있습니다.
+- 실제 결제/구독 백엔드는 아직 없습니다.
+
+---
+
+### 3.9 마이페이지
+
+구현된 기능:
+
+- 외부 채널 연동 현황
+- 가게/브랜드 프로필
+- 멤버십 및 크레딧
+- 고객센터/가이드
+
+숨은 포인트:
+
+- Instagram, Naver Place, 카카오 채널 등 운영 연동 허브 방향이 보입니다.
+- 다점포 운영, 결제 수단, 사용량 제한까지 염두에 둔 UI입니다.
+
+현재 상태:
+
+- 관리 허브 성격의 목업/프로토타입 단계입니다.
+
+---
+
+## 4. 백엔드와 AI에서 확인된 실제 구현 기능
+
+### 4.1 Spring Boot에서 실제 구현된 것
+
+- 회원가입
+- 로그인
+- 비밀번호 암호화
+- JWT 발급
+- 사용자/가게 DB 저장
+- 가게 카테고리 관리
+- 가입 직후 AI 분석 비동기 요청
+
+중요:
+
+- 현재 Spring 컨트롤러는 사실상 `AuthController` 하나가 중심입니다.
+- 즉, 프론트의 많은 화면은 아직 Spring API까지 완전히 연결된 상태는 아닙니다.
+
+---
+
+### 4.2 FastAPI에서 실제 구현된 것
+
+- 분석 요청 접수
+- 백그라운드 작업 등록
+- 분석 진행률 polling
+- 분석 결과 조회
+- 최신 분석 결과 조회
+
+분석 파이프라인:
+
+1. 네이버/카카오 리뷰 수집
+2. 원본 리뷰 MongoDB 저장
+3. BERTopic 기반 토픽 분석
+4. OpenAI 기반 페르소나/스토리 생성
+5. 최종 결과 MongoDB 저장
+6. 프론트에 최신 결과 제공
+
+---
+
+### 4.3 리뷰 수집에서 숨은 구현 포인트
+
+- 네이버와 카카오 리뷰를 둘 다 긁습니다.
+- 리뷰 UI 노이즈 제거 정규화가 들어 있습니다.
+- 중복 제거가 있습니다.
+- Playwright 기반 탐색 로직이 꽤 깊습니다.
+- Windows 환경에서 이벤트 루프 충돌까지 우회합니다.
+
+즉, 이 부분은 단순 데모 수준이 아니라 실제 크롤링 엔진 성격이 강합니다.
+
+---
+
+### 4.4 AI 분석에서 숨은 구현 포인트
+
+- Kiwi 형태소 분석
+- 한국어 stopword 처리
+- ko-sbert 임베딩
+- BERTopic
+- HDBSCAN 대체용 KMeans fallback
+- 토픽별 키워드 추출
+- 리뷰별 토픽 부착
+
+LLM이 만드는 산출물:
+
+- 가게 한 줄 요약
+- 페르소나 닉네임/태그/설명
+- 고객 여정 맵
+- 종합 코멘트
+- 액션 추천
+- 리뷰 답변 초안
+
+즉, `PULSE의 진짜 기술 코어`는 현재 AI 서버 쪽에 가장 많이 쌓여 있습니다.
+
+---
+
+## 5. 코드상에서 드러난 현재 서비스 성숙도
+
+### 5.1 실연동에 가까운 영역
+
+- 회원가입
+- 가입 직후 AI 분석 시작
+- 리뷰 수집/분석 파이프라인
+- 최신 분석 결과 기반 손님 분석 화면
+- 카카오 지도 기반 상권 분석 엔진
+
+### 5.2 UX는 깊지만 아직 목업 비중이 큰 영역
+
+- 대시보드 V2
+- 홍보 영상 생성
+- 리뷰 관리/답변
+- 인플루언서 매칭
+- 구독/결제
+- 마이페이지
+
+### 5.3 백업/레거시 흔적
+
+`unused_backup/` 안에 아래 성격의 컴포넌트가 남아 있습니다.
+
+- ReelArchive
+- SmartActionBanner
+- LocalAnalysisSection
+- PersonaSection
+
+이건 과거 정보 구조 실험이 남아 있는 것으로 보이며, 향후 재사용 가능한 아이디어 저장소 역할도 합니다.
+
+---
+
+## 6. 현재 코드 기준으로 보이는 간극과 리스크
+
+### 6.1 인증/보안
+
+- 개발 모드 우회가 켜져 있습니다.
+- 로그인 UI는 현재 mock 로그인 중심입니다.
+- `pulse_spring/src/main/resources/application.yml`에 DB 비밀번호와 JWT secret가 평문으로 들어 있습니다.
+
+### 6.2 API 연결 간극
+
+- 프론트는 많은 기능을 기대하지만, Spring의 실제 공개 API는 거의 인증뿐입니다.
+- 영상 생성용 API는 프론트가 기대하지만 현재 서버에 없습니다.
+- 리뷰 답변용 LLM 함수는 Python에 있는데 프론트 미연동입니다.
+
+### 6.3 상태 관리 간극
+
+- accessToken을 저장하지만 일부 화면은 여전히 `user` localStorage를 기준으로 동작합니다.
+- 인플루언서 제안함도 localStorage 기반입니다.
+
+즉, 지금은 `실서비스로 바로 확장 가능한 프로토타입`에 가깝고, API 통합만 더 붙으면 훨씬 강해질 구조입니다.
+
+---
+
+## 7. 최종 요약
+
+현재 코드 기준으로 PULSE는 아래처럼 정리할 수 있습니다.
+
+- `핵심 엔진`: 리뷰 수집 → 토픽 분석 → 페르소나/여정 생성
+- `핵심 UX`: 손님 분석 결과를 바탕으로 다음 홍보 행동을 제안
+- `핵심 확장`: 리뷰 운영, 영상 생성, 인플루언서 매칭, 구독화
+
+특히 중요한 포인트는 다음입니다.
+
+- PULSE는 단순 대시보드가 아니라 `행동 추천형 운영 도구`입니다.
+- AI 서버는 실제 제품 코어에 가깝게 구현돼 있습니다.
+- 프론트는 단순 화면 수준이 아니라 상당히 세밀한 운영 UX까지 먼저 만들어 둔 상태입니다.
+- 다만 일부 화면은 아직 서버와 덜 붙어 있어 `실연동 완성`이 다음 큰 단계입니다.
+
+한 줄로 정리하면,
+
+> **PULSE는 이미 "무엇을 만들 것인가" 단계를 지난 상태이고, 지금은 "각 기능을 실데이터/실API로 끝까지 연결해 진짜 운영 SaaS로 완성하는 단계"에 들어와 있습니다.**

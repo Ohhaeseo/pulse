@@ -6,11 +6,11 @@
 
 아래 자료를 먼저 확인하고 작업합니다.
 
-1. `business/[별첨 4] 2026년 예비창업패키지 예비창업자 모집공고 주요 질의응답.pdf`
-2. `business/2026년 예비창업패키지 예비창업자 온라인 사업신청 매뉴얼.pdf`
-3. `business/2026년 예비창업패키지 예비창업자 증빙서류 제출목록 안내.docx`
-4. `business/[별첨 1] 2026년 예비창업패키지 사업계획서 양식.docx`
-5. `business/사업계획서_PULSE_2026_양식정리초안.md`
+1. `business/official_docs/[별첨 4] 2026년 예비창업패키지 예비창업자 모집공고 주요 질의응답.pdf`
+2. `business/official_docs/2026년 예비창업패키지 예비창업자 온라인 사업신청 매뉴얼.pdf`
+3. `business/official_docs/2026년 예비창업패키지 예비창업자 증빙서류 제출목록 안내.docx`
+4. `business/official_docs/[별첨 1] 2026년 예비창업패키지 사업계획서 양식.docx`
+5. `business/drafts/사업계획서_PULSE_2026_양식정리초안.md`
 
 공식 요건이 불명확할 때는 추측하지 말고, 위 로컬 공식문서와 공식 공고 페이지를 우선 근거로 삼습니다.
 
@@ -51,9 +51,10 @@
 
 ## 현재 재사용 스크립트
 
-- `business/build_plan_docx.py`
-- `business/build_appendix2_docx.py`
-- `business/build_business_model_png.py`
+- `business/scripts/build_plan_docx.py`
+- `business/scripts/build_appendix2_docx.py`
+- `business/scripts/build_business_model_png.py`
+- `business/scripts/build_plan_docx.py`
 
 ## 반복 실수 방지 포인트
 

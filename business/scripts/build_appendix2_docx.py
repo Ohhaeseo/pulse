@@ -4,12 +4,17 @@ from shutil import copy2
 from docx import Document
 
 
-BASE = Path(__file__).resolve().parent
-TEMPLATE = sorted([p for p in BASE.iterdir() if p.suffix.lower() == ".docx"], key=lambda x: x.name)[0]
-OUTPUT = BASE / "사업계획서_PULSE_2026_별첨2_증빙서류_입력본.docx"
+ROOT = Path(__file__).resolve().parent.parent
+OFFICIAL = ROOT / "official_docs"
+GENERATED = ROOT / "generated"
+TEMPLATE = next(
+    p for p in OFFICIAL.iterdir() if p.suffix.lower() == ".docx" and "증빙서류 제출목록 안내" in p.name
+)
+OUTPUT = GENERATED / "사업계획서_PULSE_2026_별첨2_증빙서류_입력본.docx"
 
 
 def build() -> Path:
+    GENERATED.mkdir(parents=True, exist_ok=True)
     if OUTPUT.exists():
         OUTPUT.unlink()
     copy2(TEMPLATE, OUTPUT)

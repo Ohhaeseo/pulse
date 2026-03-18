@@ -4,11 +4,13 @@ from shutil import copy2
 from docx import Document
 
 
-BASE = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
+OFFICIAL = ROOT / "official_docs"
+GENERATED = ROOT / "generated"
 TEMPLATE = next(
-    p for p in BASE.iterdir() if p.suffix.lower() == ".docx" and "[별첨 1]" in p.name
+    p for p in OFFICIAL.iterdir() if p.suffix.lower() == ".docx" and "[별첨 1]" in p.name
 )
-OUTPUT = BASE / "사업계획서_PULSE_2026_실제입력본.docx"
+OUTPUT = GENERATED / "사업계획서_PULSE_2026_실제입력본.docx"
 
 
 def set_paragraph(doc: Document, idx: int, text: str, style: str | None = None) -> None:
@@ -24,6 +26,7 @@ def fill_row(row, values):
 
 
 def build() -> Path:
+    GENERATED.mkdir(parents=True, exist_ok=True)
     if OUTPUT.exists():
         OUTPUT.unlink()
     copy2(TEMPLATE, OUTPUT)
@@ -32,10 +35,10 @@ def build() -> Path:
 
     # Table 4: General information
     general = tables[3]
-    general.cell(0, 3).text = "리뷰 분석과 숏폼 자동생성을 결합한 외식업 AI 마케팅 자동화 플랫폼 PULSE"
+    general.cell(0, 3).text = "네이버·카카오 리뷰 분석 기반 외식업 AI 마케팅 운영 플랫폼 PULSE"
     general.cell(1, 3).text = (
-        "웹 서비스(1식), 리뷰 분석·페르소나 도출 기능(1식), AI 숏폼 생성 기능(1식), "
-        "실행 제안형 대시보드(1식), 파일럿 운영 결과 보고서(1식)"
+        "웹 서비스(1식), 네이버·카카오 리뷰 수집 및 분석 기능(1식), 고객 페르소나·고객 여정 도출 기능(1식), "
+        "AI 숏폼 생성 기능(1식), 실행 제안형 대시보드 및 상권 분석 기능(1식)"
     )
     general.cell(2, 3).text = "대학생(4학년 재학) / 미디어소프트웨어학과 / AI·CTO"
 
@@ -60,24 +63,24 @@ def build() -> Path:
     summary.cell(0, 1).text = "PULSE"
     summary.cell(0, 3).text = "AI SaaS"
     summary.cell(1, 1).text = (
-        "외식업 자영업자를 위한 AI 마케팅 자동화 플랫폼으로, 고객 이해부터 홍보 콘텐츠 제작, "
-        "다음 행동 제안까지 이어지는 실행형 서비스를 제공합니다."
+        "PULSE는 외식업 자영업자를 위한 AI 마케팅 운영 플랫폼으로, 회원가입 이후 리뷰 분석이 자동 시작되고 "
+        "고객 이해부터 홍보 콘텐츠 제작, 다음 행동 제안까지 이어지는 실행형 서비스를 제공합니다."
     )
     summary.cell(2, 1).text = (
         "리뷰와 고객 데이터를 활용한 마케팅 의사결정은 중요하지만, 자영업자는 분석 역량, "
-        "제작 시간, 외부 대행 신뢰 문제로 실제 실행이 어렵습니다."
+        "콘텐츠 제작 시간, 외부 대행 비용과 신뢰 문제로 실제 실행이 어렵습니다."
     )
     summary.cell(3, 1).text = (
-        "프론트엔드, 메인 백엔드, AI 서버로 구성된 MVP 개발이 완료되었고, 핵심 기능 시연이 가능한 상태입니다. "
-        "또한 KCI 등재 논문을 통해 문제 정의와 해결 프레임이 구조화되어 있습니다."
+        "프론트엔드, 메인 백엔드, AI 서버로 구성된 MVP 개발이 완료되었고, 네이버·카카오 리뷰 수집, "
+        "토픽 분석, 고객 페르소나·고객 여정 생성, 대시보드와 영상 제작 UX까지 시연 가능한 상태입니다."
     )
     summary.cell(4, 1).text = (
         "파일럿 점포를 통한 PoC 운영으로 현장성을 검증한 뒤 구독형 SaaS 모델을 검증하고, "
-        "향후 Pro 기능 및 B2B 제휴로 확장합니다."
+        "향후 리뷰 운영, 인플루언서 매칭, 다점포 관리, B2B 제휴 영역으로 확장합니다."
     )
     summary.cell(5, 1).text = (
         "윤준하 대표자는 AI·CTO를 담당하고, 노태경(마케팅·기획·디자인), 김혜린(프론트엔드), "
-        "오해서(백엔드)가 공동대표로 참여하는 역할 분담형 팀 구조로 MVP를 직접 구축 중입니다."
+        "오해서(백엔드)가 공동대표로 참여하는 역할 분담형 팀 구조로 MVP를 직접 구축했습니다."
     )
     summary.cell(7, 1).text = "[MVP개발1번째사진첨부: 메인 대시보드 또는 메인 화면]"
     summary.cell(7, 2).text = "[별첨2제출: 프로젝트 전체 기술적 아키텍처]"
@@ -90,7 +93,7 @@ def build() -> Path:
         doc,
         19,
         "PULSE는 외식업 자영업자가 직접 마케팅을 공부하거나 별도 대행사를 쓰지 않아도, "
-        "고객 이해, 홍보 제작, 다음 행동 제안까지 이어지는 마케팅 실행 루프를 자동화하는 서비스입니다.",
+        "회원가입 이후 리뷰 분석이 자동 시작되고 고객 이해, 홍보 제작, 다음 행동 제안까지 이어지는 마케팅 실행 루프를 자동화하는 서비스입니다.",
     )
     set_paragraph(
         doc,
@@ -120,12 +123,12 @@ def build() -> Path:
     set_paragraph(
         doc,
         27,
-        "PULSE는 React 프론트엔드, Spring Boot 메인 백엔드, FastAPI AI 서버로 구현되었으며, 현재 핵심 기능이 구현된 MVP가 있어 실제 사용자 흐름에 따라 시연이 가능합니다.",
+        "PULSE는 React 프론트엔드, Spring Boot 메인 백엔드, FastAPI AI 서버로 구현되었으며, 회원가입 직후 리뷰 분석이 자동 시작되는 구조를 갖춘 MVP로 실제 사용자 흐름에 따라 시연이 가능합니다.",
     )
     set_paragraph(
         doc,
         28,
-        "리뷰 키워드 분석, 고객 페르소나 도출, 홍보영상 생성, 행동 제안형 대시보드가 구현되어 있으며, 협약기간에는 정확도 향상과 PoC 운영에 집중할 계획입니다.",
+        "현재 네이버·카카오 리뷰 수집, 한국어 리뷰 토픽 분석, 고객 페르소나·고객 여정 도출, 행동 제안형 대시보드, 상권 분석, 홍보영상 생성 UX가 구현되어 있으며, 협약기간에는 영상 생성·리뷰 운영 API 연동과 PoC 운영을 통해 제품 완성도를 높일 계획입니다.",
         "List Paragraph",
     )
     set_paragraph(doc, 29, "[본문삽입: MVP 대표 화면 1장 - 메인 대시보드 또는 랜딩 화면]")
@@ -153,7 +156,7 @@ def build() -> Path:
     set_paragraph(
         doc,
         56,
-        "이후 구독형 SaaS로 전환하고, “리뷰 분석 + 숏폼 제작 + 실행 제안” 통합 가치로 초기 고객을 확보합니다. 향후에는 Pro 기능과 B2B 제휴로 매출 단가를 확대할 계획입니다.",
+        "이후 구독형 SaaS로 전환하고, “리뷰 분석 + 숏폼 제작 + 실행 제안” 통합 가치로 초기 고객을 확보합니다. 기본 요금제는 분석·영상·대시보드 중심으로 구성하고, 향후에는 리뷰 운영, 인플루언서 매칭, 다점포 관리, B2B 제휴로 업셀링과 매출 단가 확대를 추진합니다.",
         "List Paragraph",
     )
     set_paragraph(doc, 57, "[본문삽입: 비즈니스 모델 도식 또는 사업 확장 로드맵 중 1개 선택]")
@@ -162,7 +165,7 @@ def build() -> Path:
     set_paragraph(
         doc,
         79,
-        "기존 디자인·영상 툴은 제작 중심이고, 광고 플랫폼은 집행 중심입니다. PULSE는 고객 이해와 실행 제안을 함께 제공해 경쟁 서비스 대비 실행 연결성이 높습니다.",
+        "기존 디자인·영상 툴은 제작 중심이고, 광고 플랫폼은 집행 중심입니다. PULSE는 회원가입 직후 분석 시작, 리뷰 기반 고객 이해, 실행 제안형 대시보드까지 이어지는 운영 루프를 제공해 경쟁 서비스 대비 실행 연결성이 높습니다.",
     )
     set_paragraph(
         doc,
@@ -197,8 +200,8 @@ def build() -> Path:
     # Schedule table
     schedule = tables[5]
     schedule_rows = [
-        ["1", "MVP 기능 고도화", "협약 1~2개월차", "리뷰 분석 정교화, UI 안정화, 관리자 기능 보완"],
-        ["2", "영상 생성 기능 고도화", "협약 2~4개월차", "스토리보드 품질 향상, 생성 결과 품질 안정화"],
+        ["1", "핵심 분석 기능 고도화", "협약 1~2개월차", "리뷰 분석 정교화, 상권 분석 보강, UI 안정화"],
+        ["2", "콘텐츠·운영 기능 고도화", "협약 2~4개월차", "영상 생성 품질 향상, 리뷰 운영 기능 및 API 연동 보강"],
         ["3", "PoC 점포 모집 및 운영", "협약 3~6개월차", "실제 외식업 점포 테스트 운영, 사용성 피드백 수집"],
         ["4", "서비스 검증 및 2단계 준비", "협약 5~8개월차", "성과 분석, 반복 사용성 검증, 사업화 완성도 보강"],
     ]
