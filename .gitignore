@@ -179,6 +179,10 @@ $RECYCLE.BIN/
 *.swp
 *.swo
 *~
+~$*.docx
+business/generated/*_tmp.docx
+business/generated/*_before_*.docx
+business/generated/text_refine_trial*.docx
 
 # ======================================
 # Media files (optional - 필요시 주석 해제)
