@@ -17,6 +17,8 @@ PULSE는 외식업 자영업자를 위한 AI 마케팅 자동화 서비스입니
 - 백엔드는 Spring + MySQL, AI 서버는 FastAPI + MongoDB 조합으로 연결되어 있습니다.
 - 프론트는 목업 화면을 넘어서 실제 분석 결과와 리뷰 데이터를 받아 보여주는 단계까지 확장되었습니다.
 - 최근에는 크롤링 정확도, 차트 안정성, 실데이터 기반 사용자 표시 같은 완성도 이슈를 집중적으로 다듬었습니다.
+- `홍보 영상 만들기`는 이제 `손님 분석`의 실제 페르소나를 받아 타겟 손님으로 사용하고, 페르소나/스타일별 AI 자동 완성 프롬프트를 추천하는 흐름까지 연결되었습니다.
+- 루트에서 `scripts/run_full_validation.ps1` 한 번으로 FE lint/build, Spring test, Python pytest, Playwright 스모크 E2E까지 연속 검증할 수 있습니다.
 
 ## 날짜별 개발 일지
 
@@ -94,13 +96,56 @@ PULSE는 외식업 자영업자를 위한 AI 마케팅 자동화 서비스입니
 - MongoDB 스냅샷 버전을 올려 새 크롤링 결과가 정확히 반영되도록 정리했습니다.
 - 마지막으로 헤더의 목업 문구를 제거하고, 실제 로그인한 사용자 이름과 매장명이 표시되도록 연결했습니다.
 
+### 2026-04-07
+- 메인 저장소와 세 서브모듈을 최신 상태로 동기화하고, 프론트/스프링/파이썬 테스트가 한 번에 돌 수 있도록 전체 검증 흐름을 정리했습니다.
+- 프론트 lint 설정과 스프링 테스트 깨짐을 복구하고, Python pytest 기반을 정비해 로컬 기본 테스트가 실패 없이 돌도록 맞췄습니다.
+- 루트 `scripts/run_full_validation.ps1`와 프론트 `scripts/playwright-smoke.mjs`를 추가해 설치 후 바로 실행 가능한 통합 검증 경로를 만들었습니다.
+- 실제 회원가입과 로그인, 대시보드 진입, 리뷰 관리 로딩, 손님 분석 확인까지 브라우저에서 직접 검증했습니다.
+- `pulse_video` 레포의 홍보영상 생성 기능을 `pulse_python`에 통합하고, Veo 3.1 계열 모델과 DSPy 기반 프롬프트 최적화 흐름을 붙였습니다.
+
+### 2026-04-08
+- `홍보 영상 만들기` 탭의 타겟 손님 카드 하드코딩을 제거하고, `손님 분석`에서 생성된 실제 페르소나를 그대로 넘겨받도록 리팩터링했습니다.
+- `AI 자동 완성`은 선택한 페르소나, 스타일 갤러리, 화질, 업로드 이미지에 따라 매번 다른 추천 프롬프트를 생성하도록 연결했습니다.
+- `손님 분석 -> 맞춤 릴스 제작` 이동 시 선택한 페르소나가 그대로 유지되도록 네비게이션 컨텍스트를 정리했습니다.
+- 프롬프트 추천은 빠른 응답용 경량 엔드포인트로 분리했고, 실제 영상 생성은 Veo quota/billing 상태와 분리해서 검증할 수 있도록 만들었습니다.
+- 실제 MP4 생성은 현재 외부 영상 API quota/billing 상태에 영향을 받으며, 코드 레벨 연동과 프롬프트 추천 흐름 자체는 정상 검증 완료했습니다.
+
+## 빠른 로컬 검증
+
+다른 컴퓨터에서도 서브모듈까지 pull 받은 뒤 환경 변수와 의존성만 맞추면 바로 검증할 수 있도록 현재 기준을 정리합니다.
+
+1. 저장소를 서브모듈 포함으로 받습니다.
+   - `git clone --recurse-submodules <repo-url>`
+   - 이미 clone했다면 `git submodule update --init --recursive`
+2. 프론트 의존성을 설치합니다.
+   - `cd pulse_FE`
+   - `npm install`
+3. Python 가상환경을 만들고 의존성을 설치합니다.
+   - `cd pulse_python`
+   - `python -m venv .venv`
+   - `.venv\Scripts\activate`
+   - `pip install -r requirements.txt`
+4. Python 환경 변수를 준비합니다.
+   - `pulse_python/.env.example`를 복사해 `.env.local` 또는 `.env`로 만듭니다.
+   - 홍보영상 기능까지 테스트하려면 `OPENAI_API_KEY`, `GEMINI_API_KEY`, `VEO_API_KEY`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `VERTEX_VIDEO_API_KEY`를 채워야 합니다.
+5. Spring은 별도 전역 설치 없이 wrapper로 실행할 수 있습니다.
+   - `cd pulse_spring`
+   - `.\gradlew.bat test`
+6. 루트에서 통합 검증을 실행합니다.
+   - `powershell -ExecutionPolicy Bypass -File .\scripts\run_full_validation.ps1`
+
+참고:
+- Playwright 스모크는 로컬 Chrome 또는 Edge가 설치되어 있으면 바로 실행됩니다. 필요하면 `PULSE_PLAYWRIGHT_BROWSER_PATH`로 브라우저 경로를 지정할 수 있습니다.
+- 영상 생성 API 연동과 프롬프트 추천은 테스트 가능하지만, 실제 MP4 생성 성공 여부는 Veo quota/billing 상태에 따라 달라질 수 있습니다.
+
 ## 지금 우리가 만든 흐름
 
 1. 사용자가 회원가입을 진행합니다.
 2. Spring이 사용자/매장 정보를 저장하고 분석 작업을 요청합니다.
 3. Python AI 서버가 리뷰를 수집하고 분석해 MongoDB에 결과와 스냅샷을 저장합니다.
 4. 프론트는 저장된 결과를 받아 대시보드, 손님 분석, 리뷰 관리 화면에 실데이터를 표시합니다.
-5. 사용자는 분석 결과를 바탕으로 리뷰 답변과 실행 아이디어를 바로 확인할 수 있습니다.
+5. 홍보 영상 만들기에서는 손님 분석에서 도출된 실제 페르소나를 타겟 손님으로 넘겨 맞춤형 프롬프트와 영상 생성을 이어갈 수 있습니다.
+6. 사용자는 분석 결과를 바탕으로 리뷰 답변과 실행 아이디어를 바로 확인할 수 있습니다.
 
 ## 다음에 보면 좋은 지점
 

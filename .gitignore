@@ -179,6 +179,7 @@ $RECYCLE.BIN/
 *.swp
 *.swo
 *~
+output/
 tmp_server_pids.json
 ~$*.docx
 business/generated/*_tmp.docx
