@@ -180,6 +180,7 @@ $RECYCLE.BIN/
 *.swo
 *~
 output/
+.playwright-cli/
 tmp_server_pids.json
 ~$*.docx
 business/generated/*_tmp.docx
