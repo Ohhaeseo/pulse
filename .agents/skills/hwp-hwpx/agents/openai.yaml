@@ -1,0 +1,4 @@
+﻿interface:
+  display_name: "HWP/HWPX"
+  short_description: "Read, convert, clone, and safely edit Korean Hangul documents."
+  default_prompt: "Use $hwp-hwpx to read, convert, or safely edit a Korean HWP/HWPX document."
