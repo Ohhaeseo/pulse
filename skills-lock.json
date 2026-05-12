@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "skills": {
+    "hwpilot": {
+      "source": "devxoul/hwpilot",
+      "sourceType": "github",
+      "computedHash": "a556a651442926fb7653efb63a69e5a4de31fc51a54e6b839e70c422139f91bd"
+    },
+    "hwpx": {
+      "source": "Canine89/hwpxskill",
+      "sourceType": "github",
+      "computedHash": "a6f8a98eac9254d53cd2c389645ee018dc6354d532ea5871c34a85cf6ce5fa3e"
+    },
+    "kordoc-korean-document-parser": {
+      "source": "Aradotso/trending-skills",
+      "sourceType": "github",
+      "computedHash": "4d74bf75f798fb97ba04a65d35efa675a30a834ab9efbd332ab0a17776c17252"
+    }
+  }
+}
