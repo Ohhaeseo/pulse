@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { MoreHorizontal } from 'lucide-react';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import DashboardHome from '../../features/dashboard/DashboardHome';
 import StatusV2Page from '../../features/dashboard-v2/StatusV2Page';
 import UnifiedInsightPage from '../../features/insight/UnifiedInsightPage';
 import CommercialAnalysisPage from '../../features/insight/CommercialAnalysisPage';
@@ -16,7 +15,7 @@ import { COLORS } from '../../constants';
 import '../../styles/globals.css';
 
 export default function DashboardLayout({ initialPage, content }) {
-    const [activeMenu, setActiveMenu] = useState(initialPage || 'home');
+    const [activeMenu, setActiveMenu] = useState(initialPage || 'status');
     const [isExpanded, setIsExpanded] = useState(false);
     const [userProfile, setUserProfile] = useState(null);
 
@@ -50,7 +49,7 @@ export default function DashboardLayout({ initialPage, content }) {
     };
 
     return (
-        <div className="flex h-screen font-pretendard overflow-hidden" style={{ backgroundColor: COLORS.bgPage }} data-testid="dashboard-layout">
+        <div className="flex h-dvh font-pretendard overflow-hidden" style={{ backgroundColor: COLORS.bgPage }} data-testid="dashboard-layout">
             <Sidebar
                 activeMenu={activeMenu}
                 setActiveMenu={handleSidebarNavigate}
@@ -60,16 +59,11 @@ export default function DashboardLayout({ initialPage, content }) {
             />
 
             <main
-                className={`flex-1 p-6 h-full flex flex-col main-content pt-20 md:pt-6 transition-all duration-300 ${isExpanded ? 'md:ml-[276px] ml-0' : 'md:ml-[96px] ml-0'}`}
+                className={`flex-1 p-6 h-full flex flex-col main-content pt-20 md:pt-6 transition-[margin] duration-300 ${isExpanded ? 'md:ml-[276px] ml-0' : 'md:ml-[96px] ml-0'}`}
             >
                 <div className="max-w-[1400px] h-full flex flex-col w-full mx-auto">
-                    {activeMenu === 'home' ? (
-                        // DASHBOARD VIEW
-                        <>
-                            <DashboardHome onNavigate={handleNavigate} />
-                        </>
-                    ) : activeMenu === 'status-v2' ? (
-                        // V2 DASHBOARD VIEW
+                    {activeMenu === 'status' ? (
+                        // UNIFIED STORE DASHBOARD
                         <>
                             <StatusV2Page onNavigate={handleNavigate} />
                         </>
@@ -89,7 +83,7 @@ export default function DashboardLayout({ initialPage, content }) {
                         // MYPAGE VIEW
                         <>
                             <Header title="가게 정보와 연동 상태를 관리하세요." profile={userProfile} />
-                            <MyPage />
+                            <MyPage onNavigate={handleNavigate} profile={userProfile} />
                         </>
                     ) : activeMenu === 'promotion' ? (
                         // PROMOTION VIEW
@@ -105,7 +99,7 @@ export default function DashboardLayout({ initialPage, content }) {
                         </div>
                     ) : activeMenu === 'subscription' ? (
                         // SUBSCRIPTION VIEW
-                        <SubscriptionPage />
+                        <SubscriptionPage onNavigate={handleNavigate} />
                     ) : activeMenu === 'influencer-matching' ? (
                         // INFLUENCER MATCHING VIEW
                         // content prop이 있으면(RequestPage 등) 그것을 렌더링, 아니면 메인 페이지

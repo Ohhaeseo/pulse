@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 import Header from '../components/layout/Header';
 import PricingCard from '../components/subscription/PricingCard';
 import FaqSection from '../components/subscription/FaqSection';
 
-/**
- * SubscriptionPage (Fintech Style)
- * Main pricing page with 3-tier model and billing toggle.
- */
-const SubscriptionPage = () => {
+const SubscriptionPage = ({ onNavigate }) => {
     const [isYearly, setIsYearly] = useState(false);
 
     // Plan Data (Content SSOT: subscription_model.md)
@@ -72,6 +69,17 @@ const SubscriptionPage = () => {
         <div className="flex flex-col h-full bg-[#F5F7FA] overflow-y-auto">
             {/* Header */}
             <div className="p-6 pb-0">
+                {onNavigate && (
+                    <button
+                        onClick={() => onNavigate('mypage')}
+                        className="flex items-center gap-1.5 text-body-7 text-primary-inactive
+                                   hover:text-primary transition-colors mb-4
+                                   focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/20 rounded"
+                    >
+                        <ChevronLeft size={14} />
+                        마이페이지로 돌아가기
+                    </button>
+                )}
                 <Header title="구독 요금제 관리" />
             </div>
 

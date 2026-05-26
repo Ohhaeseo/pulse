@@ -39,71 +39,73 @@ export default function InfluencerCard({ influencer, onViewDetail }) {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-[#F2F4F6] shadow-sm hover:shadow-md hover:scale-[1.02] transition-all duration-300 group flex flex-col h-full relative z-10 p-6 gap-5">
+        <div className="bg-white rounded-xl border border-[#F2F4F6] shadow-sm hover:shadow-lg transition-shadow duration-200 group flex flex-col h-full relative z-10 hover:z-20 p-6 gap-5">
             
             {/* 1. Header: Avatar & Name */}
-            <div className="flex justify-between items-start">
-                <div className="flex gap-4 items-center">
-                    <div className="w-[48px] h-[48px] rounded-full p-[1.5px] bg-gradient-to-tr from-[#002B7A] to-[#4070F4] shrink-0">
-                        <img
-                            src={influencer.profileImage}
-                            alt={influencer.name}
-                            className="w-full h-full rounded-full object-cover border-2 border-white"
-                        />
-                    </div>
-                    <div>
-                        <h3 className="text-[20px] font-bold text-[#191F28] truncate mb-0.5">{influencer.name}</h3>
-                        <div className="text-[13px] text-[#8B95A1] flex items-center gap-1 truncate font-medium">
-                            <MapPin size={12} className="text-[#8B95A1]" />
-                            <span>{influencer.location.split(" ")[1] || influencer.location}</span>
-                            <span className="w-[3px] h-[3px] rounded-full bg-[#D1D6DB]"></span>
-                            <span className="text-[#4E5968]">{influencer.niche[0]}</span>
-                        </div>
-                    </div>
+            <div className="flex gap-3 items-start">
+                <div className="w-[48px] h-[48px] rounded-full p-[1.5px] bg-gradient-to-tr from-[#002B7A] to-[#4070F4] shrink-0">
+                    <img
+                        src={influencer.profileImage}
+                        alt={influencer.name}
+                        className="w-full h-full rounded-full object-cover border-2 border-white"
+                    />
                 </div>
+                <div className="flex-1 min-w-0">
+                    {/* Name + Badge — badge wraps to next line when space is tight */}
+                    <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                        <h3 className="text-[20px] font-bold text-[#191F28] leading-tight">{influencer.name}</h3>
 
-                {/* Match Score Badge (Action Main) */}
-                <div className="relative">
-                    <div className="flex items-center gap-1 bg-[#FF5A361A] text-[#FF5A36CC] px-2 py-1 rounded-lg text-[13px] font-bold border border-[#FF5A3633]">
-                        <Zap size={14} fill="currentColor" />
-                        {influencer.matchScore}%
-                        
-                        <div
-                            className="p-1 -m-1 cursor-help opacity-70 hover:opacity-100 transition-opacity z-10"
-                            onMouseEnter={() => setShowTooltip(true)}
-                            onMouseLeave={() => setShowTooltip(false)}
-                        >
-                            <Info size={14} />
+                        {/* Match Score Badge — compact size, never truncates name */}
+                        <div className="relative shrink-0">
+                            <div className="flex items-center gap-0.5 bg-[#FF5A361A] text-[#FF5A36CC] px-1.5 py-0.5 rounded-md text-[11px] font-bold border border-[#FF5A3633] leading-none">
+                                <Zap size={11} fill="currentColor" />
+                                {influencer.matchScore}%
+                                <div
+                                    className="cursor-help opacity-70 hover:opacity-100 transition-opacity"
+                                    onMouseEnter={() => setShowTooltip(true)}
+                                    onMouseLeave={() => setShowTooltip(false)}
+                                >
+                                    <Info size={11} />
+                                </div>
+                            </div>
+
+                            {/* Tooltip */}
+                            <div className={`absolute left-0 top-[calc(100%+8px)] w-[240px] bg-white text-[#191F28] border border-[#E5E8EB] shadow-xl rounded-xl p-4 z-[100] transition-opacity duration-200 pointer-events-none text-left font-normal ${showTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'}`}>
+                                <h4 className="text-[13px] font-bold mb-3 text-[#002B7A] flex items-center gap-1.5 border-b border-[#F2F4F6] pb-2">
+                                    <Star size={14} className="text-[#002B7A]" />
+                                    AI 매장 적합도 분석
+                                </h4>
+                                <div className="flex flex-col gap-3">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1.5">
+                                            <span className="text-[12px] font-bold text-[#333D4B]">우리 매장 적합률</span>
+                                            <span className="text-[12px] font-bold text-[#002B7A]">{tagMatchPercent}%</span>
+                                        </div>
+                                        <div className="w-full h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
+                                            <div className="h-full bg-[#002B7A] rounded-full" style={{ width: `${Math.max(tagMatchPercent, 10)}%` }}></div>
+                                        </div>
+                                    </div>
+                                    <div className="flex flex-col gap-2 mt-1">
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isAreaMatch ? 'bg-[#FF5A36CC]' : 'bg-[#D1D6DB]'}`}></div>
+                                            <span className="text-[12px] text-[#4E5968] leading-none">활동 지역 일치 <strong className="text-[#333D4B]">({storeGu})</strong></span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <div className={`w-1.5 h-1.5 rounded-full ${isDemographicMatch ? 'bg-[#FF5A36CC]' : 'bg-[#D1D6DB]'}`}></div>
+                                            <span className="text-[12px] text-[#4E5968] leading-none">타겟 고객 일치 <strong className="text-[#333D4B]">({storeInfo.targetAge}대)</strong></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Tooltip */}
-                    <div className={`absolute right-0 top-[calc(100%+8px)] w-[240px] bg-white text-[#191F28] border border-[#E5E8EB] shadow-xl rounded-xl p-4 z-[100] transition-all duration-200 pointer-events-none text-left font-normal ${showTooltip ? 'opacity-100 visible translate-y-0' : 'opacity-0 invisible -translate-y-2'}`}>
-                        <h4 className="text-[13px] font-bold mb-3 text-[#002B7A] flex items-center gap-1.5 border-b border-[#F2F4F6] pb-2">
-                            <Star size={14} className="text-[#002B7A]" />
-                            AI 매장 적합도 분석
-                        </h4>
-                        <div className="flex flex-col gap-3">
-                            <div>
-                                <div className="flex justify-between items-center mb-1.5">
-                                    <span className="text-[12px] font-bold text-[#333D4B]">우리 매장 적합률</span>
-                                    <span className="text-[12px] font-bold text-[#002B7A]">{tagMatchPercent}%</span>
-                                </div>
-                                <div className="w-full h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
-                                    <div className="h-full bg-[#002B7A] rounded-full" style={{ width: `${Math.max(tagMatchPercent, 10)}%` }}></div>
-                                </div>
-                            </div>
-                            <div className="flex flex-col gap-2 mt-1">
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${isAreaMatch ? 'bg-[#FF5A36CC]' : 'bg-[#D1D6DB]'}`}></div>
-                                    <span className="text-[12px] text-[#4E5968] leading-none">활동 지역 일치 <strong className="text-[#333D4B]">({storeGu})</strong></span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className={`w-1.5 h-1.5 rounded-full ${isDemographicMatch ? 'bg-[#FF5A36CC]' : 'bg-[#D1D6DB]'}`}></div>
-                                    <span className="text-[12px] text-[#4E5968] leading-none">타겟 고객 일치 <strong className="text-[#333D4B]">({storeInfo.targetAge}대)</strong></span>
-                                </div>
-                            </div>
-                        </div>
+                    {/* Location */}
+                    <div className="text-[13px] text-[#8B95A1] flex items-center gap-1 font-medium">
+                        <MapPin size={12} className="text-[#8B95A1] shrink-0" />
+                        <span>{influencer.location.split(" ")[1] || influencer.location}</span>
+                        <span className="w-[3px] h-[3px] rounded-full bg-[#D1D6DB] shrink-0"></span>
+                        <span className="text-[#4E5968]">{influencer.niche[0]}</span>
                     </div>
                 </div>
             </div>

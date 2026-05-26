@@ -9,7 +9,9 @@ const V2KpiTile = ({
     compareText,
     compareStatus,
     state = 'default', // 'default' | 'loading' | 'empty' | 'error'
-    baseTime = '방금 전'
+    baseTime = '방금 전',
+    source,  // e.g. "네이버 검색"
+    period,  // e.g. "이번 주"
 }) => {
     const count = useMotionValue(0);
     const numericValue = typeof currentValue === 'string' ? parseFloat(currentValue.replace(/,/g, '')) || 0 : Number(currentValue) || 0;
@@ -37,7 +39,7 @@ const V2KpiTile = ({
         return (
             <div className="flex flex-col gap-1 w-32">
                 <p className="text-[14px] text-gray-500 font-medium">{label}</p>
-                <p className="text-[24px] font-bold text-gray-400 cursor-not-allowed" title="연동 오류">연동 오류</p>
+                <p className="text-[24px] font-bold text-gray-400" title="연동 오류">연동 오류</p>
             </div>
         );
     }
@@ -74,7 +76,10 @@ const V2KpiTile = ({
 
     return (
         <div className="flex flex-col items-start gap-1 group relative cursor-default">
-            <p className="text-[14px] text-gray-500 font-medium">{label}</p>
+            <div className="flex items-center gap-1">
+                <p className="text-[14px] text-gray-500 font-medium">{label}</p>
+                {period && <span className="text-[13px] text-gray-400">· {period}</span>}
+            </div>
             <div className="flex items-end gap-2">
                 <div className="flex items-baseline gap-[1px]">
                     <motion.p className="text-[24px] font-bold text-[#191F28] leading-none tracking-tight">
@@ -86,6 +91,10 @@ const V2KpiTile = ({
                 </div>
                 {renderCompareStatus()}
             </div>
+
+            {source && (
+                <p className="text-[11px] text-gray-400">{source}</p>
+            )}
 
             {/* Tooltip for Base Time */}
             <div className="absolute top-full left-0 mt-2 whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">

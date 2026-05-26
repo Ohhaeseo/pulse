@@ -34,10 +34,10 @@ export default function InfluencerMatchingPage({ initialParams }) {
                 - Header.jsx has pl-2 (8px). Total indent = 32px.
                 - We use pl-2 here to match Header's text alignment exactly ("범" alignment).
             */}
-            <div className="flex-1 w-full pl-2 pr-6 pb-6 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start min-h-0">
+            <div className="flex-1 w-full pl-2 pr-6 pb-6 flex gap-8 items-start min-h-0">
 
-                {/* [LEFT] Sticky Sidebar (Span 3) */}
-                <div className="hidden lg:flex lg:col-span-3 flex-col gap-5 h-full overflow-hidden relative">
+                {/* [LEFT] Sticky Sidebar - fixed width so sidebar hover doesn't reflow */}
+                <div className="hidden lg:flex w-[240px] shrink-0 flex-col gap-5 h-full overflow-hidden relative">
 
                     {/* Search & Filter Section */}
                     <div className="flex flex-col gap-3">
@@ -121,8 +121,8 @@ export default function InfluencerMatchingPage({ initialParams }) {
                     </div>
                 </div>
 
-                {/* [RIGHT] Feed Area (Span 9) */}
-                <div className="col-span-1 lg:col-span-9 flex flex-col gap-6 pt-2 h-full overflow-y-auto custom-scrollbar pb-20 pr-2">
+                {/* [RIGHT] Feed Area - flex-1 fills remaining space */}
+                <div className="flex-1 min-w-0 flex flex-col gap-6 pt-2 h-full overflow-y-auto overflow-x-hidden custom-scrollbar pb-20 pr-2">
 
                     {/* Feed Header (No Count) */}
                     <div className="flex items-end justify-between border-b border-[#E5E8EB] pb-5">

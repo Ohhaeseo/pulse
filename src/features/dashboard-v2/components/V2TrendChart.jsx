@@ -15,7 +15,9 @@ const V2TrendChart = ({
     title = '최근 트렌드',
     seriesData = [],
     xAxisKey = 'name',
-    lineDataKey = 'value'
+    lineDataKey = 'value',
+    onDetailClick,
+    isDetailOpen = false,
 }) => {
     const chartSize = useMeasuredElement();
 
@@ -29,13 +31,18 @@ const V2TrendChart = ({
     }
 
     return (
-        <div className="bg-white border border-gray-200 rounded-[24px] p-5 shadow-sm flex flex-col relative w-full h-[240px]">
+        <div className="bg-white border border-gray-200 rounded-[24px] p-5 shadow-sm flex flex-col relative w-full h-full min-h-[160px]">
             {/* Header */}
             <div className="flex items-center justify-between mb-4 shrink-0">
                 <h3 className="text-[16px] font-bold text-[#191F28] flex items-center gap-2">
                     {title}
                 </h3>
-                <button className="text-[12px] font-bold text-[#002B7A] hover:text-[#001F5C] transition-colors flex items-center gap-0.5">
+                <button
+                    onClick={onDetailClick}
+                    aria-expanded={isDetailOpen}
+                    aria-controls="trend-detail-drawer"
+                    className="text-[12px] font-bold text-[#002B7A] hover:text-[#001F5C] flex items-center gap-0.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002B7A] focus-visible:ring-offset-2"
+                >
                     자세히 보기 <ChevronRight size={14} />
                 </button>
             </div>

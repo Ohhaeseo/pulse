@@ -27,8 +27,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
     const ownerName = profile?.ownerName || OWNER_FALLBACK;
 
     const menus = [
-        { id: 'home', icon: <LayoutDashboard size={24} />, label: '\uAC00\uAC8C \uD604\uD669 (AS-IS)' },
-        { id: 'status-v2', icon: <LayoutDashboard size={24} />, label: '\uAC00\uAC8C \uD604\uD669 V2', badge: 'New' },
+        { id: 'status', icon: <LayoutDashboard size={24} />, label: '\uAC00\uAC8C \uD604\uD669' },
         { id: 'commercial-analysis', icon: <Map size={24} />, label: '\uC8FC\uBCC0 \uC0C1\uAD8C \uBD84\uC11D' },
         { id: 'insight', icon: <BarChart2 size={24} />, label: '\uC190\uB2D8 \uBD84\uC11D' },
         { id: 'promotion', icon: <PlayCircle size={24} />, label: '\uD64D\uBCF4 \uC601\uC0C1 \uB9CC\uB4E4\uAE30' },
@@ -55,8 +54,8 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
             }}
         >
             <div
-                className={`h-20 flex items-center pl-4 shrink-0 overflow-hidden transition-all duration-400 ease-[cubic-bezier(0.25,0.8,0.25,1)] ${isExpanded ? 'w-[260px]' : 'w-[68px]'} cursor-pointer`}
-                onClick={() => setActiveMenu('home')}
+                className={`h-20 flex items-center pl-4 shrink-0 overflow-hidden transition-[width] duration-400 ease-[cubic-bezier(0.25,0.8,0.25,1)] ${isExpanded ? 'w-[260px]' : 'w-[68px]'} cursor-pointer`}
+                onClick={() => setActiveMenu('status')}
             >
                 <img
                     src={`${import.meta.env.BASE_URL}PULSE_LOGO.png`}
@@ -93,7 +92,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
 
                 <div className="mb-2 shrink-0 relative px-2">
                     <div
-                        className={`relative flex items-center h-16 transition-all duration-200 rounded-2xl ${isExpanded ? 'bg-white/10 px-3 justify-between' : 'justify-center hover:bg-white/5'}`}
+                        className={`relative flex items-center h-16 transition-colors duration-200 rounded-2xl ${isExpanded ? 'bg-white/10 px-3 justify-between' : 'justify-center hover:bg-white/5'}`}
                     >
                         <div className="flex items-center gap-3 overflow-hidden">
                             <div className="shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-white/20 to-white/5 flex items-center justify-center border border-white/10 shadow-inner">
@@ -101,7 +100,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
                             </div>
 
                             <div
-                                className={`flex flex-col justify-center transition-all duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'} cursor-pointer hover:opacity-80`}
+                                className={`flex flex-col justify-center transition-opacity duration-300 ${isExpanded ? 'opacity-100 w-auto' : 'opacity-0 w-0 hidden'} cursor-pointer hover:opacity-80`}
                                 onClick={(event) => {
                                     event.stopPropagation();
                                     setActiveMenu('subscription');
@@ -119,7 +118,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
                             <button
                                 onClick={handleLogout}
                                 data-testid="sidebar-desktop-logout"
-                                className="group flex items-center justify-center w-8 h-8 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-all"
+                                className="group flex items-center justify-center w-8 h-8 rounded-lg text-white/30 hover:text-white hover:bg-white/10 transition-colors"
                             >
                                 <LogOut size={15} strokeWidth={2} />
                             </button>
@@ -131,7 +130,7 @@ const Sidebar = ({ activeMenu, setActiveMenu, isExpanded, setIsExpanded, profile
 
         {/* --- Mobile View --- */}
         <div className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white shadow-sm z-40 flex items-center justify-between px-4 border-b border-gray-100">
-            <img src={`${import.meta.env.BASE_URL}PULSE_LOGO.png`} alt="PULSE" className="h-5 w-auto object-contain cursor-pointer" onClick={() => setActiveMenu('home')} />
+            <img src={`${import.meta.env.BASE_URL}PULSE_LOGO.png`} alt="PULSE" className="h-5 w-auto object-contain cursor-pointer" onClick={() => setActiveMenu('status')} />
             <div className="flex items-center gap-3">
                 <div onClick={() => setActiveMenu('mypage')} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200 cursor-pointer">
                     <User size={16} className="text-gray-600" />

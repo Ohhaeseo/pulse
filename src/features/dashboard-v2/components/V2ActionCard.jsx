@@ -10,7 +10,7 @@ const V2ActionCard = ({
 }) => {
     return (
         <div
-            className="bg-white border border-transparent hover:border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-[2px] cursor-pointer group flex flex-col gap-3"
+            className="bg-white border border-transparent hover:border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-[border-color,box-shadow,transform] duration-300 hover:-translate-y-[2px] cursor-pointer group flex flex-col gap-3"
             onClick={onAction}
         >
             <div className="flex items-start gap-3">
