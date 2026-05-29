@@ -139,6 +139,43 @@ class GenerateReviewRepliesResponse(BaseModel):
     replies: List[GeneratedReviewReply]
 
 
+class MapInsightSummary(BaseModel):
+    competitionTotal: int = 0
+    densityPerKm2: float = 0
+    anchorScore: int = 0
+    anchorType: str = ""
+
+
+class MapInsightActionsRequest(BaseModel):
+    latitude: float
+    longitude: float
+    radius: int
+    category: str
+    marketSummary: MapInsightSummary
+
+
+class MapInsightCta(BaseModel):
+    label: str
+    action: str
+    payload: Dict[str, Any] = Field(default_factory=dict)
+
+
+class MapInsightAction(BaseModel):
+    title: str
+    why: str
+    todo: List[str]
+    cta: MapInsightCta
+
+
+class MapInsightActionsData(BaseModel):
+    aiMarketingActions: List[MapInsightAction]
+
+
+class MapInsightActionsResponse(BaseModel):
+    status: str = "SUCCESS"
+    data: MapInsightActionsData
+
+
 class PromotionVideoResult(BaseModel):
     videoUrl: str
     videoTitle: str

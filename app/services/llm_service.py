@@ -20,14 +20,32 @@ class LLMService:
     """
 
     def __init__(self):
-        # OpenAI API 키 확인
-        api_key = os.getenv("OPENAI_API_KEY")
+        self.provider = os.getenv("LLM_PROVIDER", "deepseek").strip().lower()
+        self.base_url = os.getenv("LLM_BASE_URL")
+        self.model = os.getenv("LLM_MODEL")
+
+        if self.provider == "deepseek":
+            api_key = os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
+            self.base_url = self.base_url or os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+            self.model = self.model or os.getenv("DEEPSEEK_MODEL", "deepseek-v4-pro")
+            self.reasoning_effort = os.getenv("DEEPSEEK_REASONING_EFFORT", "high")
+            self.thinking_enabled = os.getenv("DEEPSEEK_THINKING", "enabled").strip().lower() != "disabled"
+        else:
+            api_key = os.getenv("OPENAI_API_KEY")
+            self.base_url = self.base_url or os.getenv("OPENAI_BASE_URL")
+            self.model = self.model or os.getenv("OPENAI_MODEL", "gpt-5-mini")
+            self.reasoning_effort = None
+            self.thinking_enabled = False
+
         if not api_key:
-            logger.warning("⚠️ [LLMService] OPENAI_API_KEY is missing. LLM features may fail.")
-        
-        # OpenAI 클라이언트 초기화
-        self.client = OpenAI(api_key=api_key)
-        self.model = os.getenv("OPENAI_MODEL", "gpt-5-mini")
+            logger.warning(f"⚠️ [LLMService] API key is missing for provider '{self.provider}'. LLM features may fail.")
+
+        client_kwargs: Dict[str, Any] = {"api_key": api_key}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+
+        self.client = OpenAI(**client_kwargs)
+        logger.info(f"[LLMService] provider={self.provider}, model={self.model}, base_url={self.base_url or 'default'}")
 
     def _create_chat_completion(
         self,
@@ -47,8 +65,21 @@ class LLMService:
         if response_format is not None:
             params["response_format"] = response_format
 
-        # GPT-5 chat-completions currently only supports the default temperature.
-        if temperature is not None and not self.model.startswith("gpt-5"):
+        if self.provider == "deepseek":
+            if self.reasoning_effort:
+                params["reasoning_effort"] = self.reasoning_effort
+            params["extra_body"] = {
+                "thinking": {
+                    "type": "enabled" if self.thinking_enabled else "disabled",
+                }
+            }
+
+        # GPT-5 chat-completions and DeepSeek thinking mode do not use custom temperature.
+        if (
+            temperature is not None
+            and not self.model.startswith("gpt-5")
+            and not (self.provider == "deepseek" and self.thinking_enabled)
+        ):
             params["temperature"] = temperature
 
         return self.client.chat.completions.create(**params)
@@ -486,3 +517,114 @@ JSON 없이 텍스트만 출력하세요.
             })
 
         return replies
+
+    def generate_map_insight_actions(self, payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+        market_summary = payload.get("marketSummary") or {}
+        competition_total = int(market_summary.get("competitionTotal") or 0)
+        density_per_km2 = float(market_summary.get("densityPerKm2") or 0)
+        anchor_score = int(market_summary.get("anchorScore") or 0)
+        anchor_type = market_summary.get("anchorType") or "일반 상권형"
+        radius = payload.get("radius")
+        category = payload.get("category")
+
+        prompt = f"""
+당신은 동네 소상공인을 위한 상권 분석 기반 마케팅 컨설턴트입니다.
+아래 상권 요약만 근거로 사장님이 이번 주에 바로 실행할 수 있는 마케팅 액션 2개를 제안하세요.
+
+[상권 요약]
+- 분석 반경: {radius}m
+- 카카오 업종 코드: {category}
+- 동종 경쟁 업소 수: {competition_total}개
+- 1km2당 동종 업소 밀도: {density_per_km2}개
+- 앵커 시설 점수: {anchor_score}
+- 상권 유형: {anchor_type}
+
+[작성 규칙]
+1. 경쟁 업소 수가 30개 이상이면 USP, 메뉴 사진, 리뷰 차별화처럼 방어형 차별화 액션을 포함하세요.
+2. 상권 유형에 맞는 고객층을 구체적으로 가정하세요. 예: 역세권은 출퇴근/이동 수요, 학원가는 학생/학부모 수요.
+3. 추상적인 조언보다 실제로 설정하거나 게시할 수 있는 작업을 제안하세요.
+4. 반드시 JSON만 출력하세요. Markdown code block은 쓰지 마세요.
+
+[JSON 형식]
+{{
+  "aiMarketingActions": [
+    {{
+      "title": "짧은 액션 제목",
+      "why": "왜 이 액션이 필요한지 1~2문장",
+      "todo": ["실행할 일 1", "실행할 일 2"],
+      "cta": {{
+        "label": "버튼 문구",
+        "action": "OPEN_COPY_GENERATOR",
+        "payload": {{ "type": "usp" }}
+      }}
+    }}
+  ]
+}}
+"""
+
+        try:
+            response = self._create_chat_completion(
+                messages=[
+                    {"role": "system", "content": "Output only valid JSON for the requested schema."},
+                    {"role": "user", "content": prompt},
+                ],
+                temperature=0.4,
+                response_format={"type": "json_object"},
+            )
+            result_text = response.choices[0].message.content.strip()
+            parsed = json.loads(result_text)
+            actions = parsed.get("aiMarketingActions") or []
+            if not isinstance(actions, list) or len(actions) < 2:
+                raise ValueError("aiMarketingActions must contain at least two actions")
+            return actions[:2]
+        except Exception as e:
+            logger.error(f"Error generating map insight actions: {e}")
+            return self._fallback_map_insight_actions(
+                competition_total=competition_total,
+                anchor_type=anchor_type,
+            )
+
+    @staticmethod
+    def _fallback_map_insight_actions(competition_total: int, anchor_type: str) -> List[Dict[str, Any]]:
+        if competition_total >= 30:
+            first = {
+                "title": "동종 경쟁 대비 USP 정리",
+                "why": f"반경 내 동종 업소가 {competition_total}개라 고객이 한눈에 차이를 느낄 이유가 필요합니다.",
+                "todo": [
+                    "대표 메뉴의 맛, 양, 가격, 재료 강점 중 하나를 한 문장으로 정리하기",
+                    "네이버 플레이스 첫 사진과 소개 문구에 같은 강점을 반복 노출하기",
+                ],
+                "cta": {"label": "USP 문구 만들기", "action": "OPEN_COPY_GENERATOR", "payload": {"type": "usp"}},
+            }
+        else:
+            first = {
+                "title": "근처 신규 고객 유입 강화",
+                "why": "경쟁 강도가 과도하지 않아 주변 고객에게 발견될 기회를 넓히는 편이 효과적입니다.",
+                "todo": [
+                    "대표 메뉴와 방문 이유를 담은 짧은 홍보 문구 작성하기",
+                    "점심/저녁 피크 시간대에 맞춘 쿠폰 또는 리뷰 이벤트 준비하기",
+                ],
+                "cta": {"label": "홍보 문구 만들기", "action": "OPEN_CONTENT_BUILDER", "payload": {"theme": "signature"}},
+            }
+
+        transit_like = "역" in anchor_type or "세권" in anchor_type
+        second = {
+            "title": "출퇴근 동선 고객 공략" if transit_like else "동네 재방문 고객 만들기",
+            "why": (
+                "역세권 수요가 기대되므로 빠르게 들를 수 있는 메뉴와 시간대 혜택을 강조하는 것이 좋습니다."
+                if transit_like
+                else "생활권 고객은 반복 방문 가능성이 높아 리뷰와 재방문 혜택을 함께 설계하는 것이 좋습니다."
+            ),
+            "todo": (
+                ["포장 가능 메뉴와 소요 시간을 플레이스 소개에 명확히 쓰기", "퇴근 시간대 한정 혜택 문구를 준비하기"]
+                if transit_like
+                else ["방문 후 리뷰 작성 혜택을 계산대와 영수증에 안내하기", "단골이 기억할 수 있는 짧은 재방문 쿠폰 문구 만들기"]
+            ),
+            "cta": {
+                "label": "쿠폰 문구 만들기",
+                "action": "OPEN_CONTENT_BUILDER",
+                "payload": {"theme": "commute" if transit_like else "review"},
+            },
+        }
+
+        return [first, second]

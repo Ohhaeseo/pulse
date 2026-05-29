@@ -12,6 +12,8 @@ from app.schemas.dtos import (
     AnalysisRequestRequest,
     GenerateReviewRepliesRequest,
     GenerateReviewRepliesResponse,
+    MapInsightActionsRequest,
+    MapInsightActionsResponse,
     PersonaResponse,
     PromotionPromptPreviewResponse,
     PromotionPromptRecommendationResponse,
@@ -408,6 +410,18 @@ async def generate_review_replies(req: GenerateReviewRepliesRequest):
     except Exception as exc:
         logger.error("Failed to generate review replies: %s", exc)
         raise HTTPException(status_code=500, detail=f"답변 생성 실패: {exc}")
+
+
+@router.post("/map-insight/actions", response_model=MapInsightActionsResponse)
+async def generate_map_insight_actions(req: MapInsightActionsRequest):
+    try:
+        actions = llm_service.generate_map_insight_actions(req.model_dump())
+        return MapInsightActionsResponse(
+            data={"aiMarketingActions": actions}
+        )
+    except Exception as exc:
+        logger.error("Failed to generate map insight actions: %s", exc)
+        raise HTTPException(status_code=500, detail=f"상권 액션 생성 실패: {exc}")
 
 
 @router.post("/info/generate", response_model=TaskResponse)

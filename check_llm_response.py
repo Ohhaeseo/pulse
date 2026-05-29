@@ -10,7 +10,7 @@ sys.path.append(os.getcwd())
 from app.services.llm_service import LLMService
 from app.schemas.dtos import PersonaResponse
 
-# Load env (specifically for OPENAI_API_KEY)
+# Load env for the configured LLM provider.
 load_dotenv()
 
 def main():
@@ -45,7 +45,7 @@ def main():
     }
 
     # 3. Call Service
-    print("\n🔍 Generating Report (Calling OpenAI GPT-4o)...")
+    print(f"\n🔍 Generating Report (Calling {service.provider}:{service.model})...")
     try:
         result = service.generate_full_report("테스트 해장국", mock_analysis_result)
         print("✅ Report Generated!")
