@@ -8,7 +8,15 @@
  * 3. 백엔드 통신 실패 시 프론트 자체 Fallback 액션 반환
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+const SPRING_API_BASE_URL = import.meta.env.VITE_SPRING_API_BASE_URL || 'http://localhost:8080/api';
+
+function getAuthHeaders() {
+    const token = localStorage.getItem('accessToken');
+    return {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+}
 
 /**
  * 프론트가 분석한 상권 요약본을 보내고 AI 행동 제안을 받아오는 함수
@@ -27,16 +35,13 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080
  * @returns {Promise<Array>} - AI가 추천하는 마케팅 액션 배열 반환
  */
 export async function fetchAiMarketingActions(payload) {
-    const endpoint = `${API_BASE_URL}/api/v1/map-insight/actions`;
+    const endpoint = `${SPRING_API_BASE_URL}/v1/map-insight/actions`;
 
     try {
         // 실제 환경에서는 Authorization 토큰 등을 헤더에 추가합니다.
         const response = await fetch(endpoint, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}` // 향후 추가
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(payload)
         });
 
@@ -101,6 +106,24 @@ export async function fetchAiMarketingActions(payload) {
     }
 }
 
+export async function fetchMarketInsightReport(payload) {
+    const endpoint = `${SPRING_API_BASE_URL}/v1/map-insight/report`;
+
+    const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const error = new Error(`상권 리포트 API 응답 에러 (Status: ${response.status})`);
+        error.status = response.status;
+        throw error;
+    }
+
+    return response.json();
+}
+
 /**
  * 내 가게 정보(위치 및 업종)를 백엔드에서 조회하는 함수
  * 
@@ -113,15 +136,12 @@ export async function fetchAiMarketingActions(payload) {
  */
 export async function fetchMyStoreInfo() {
     // 백엔드 프로필/가게 정보 조회 엔드포인트 가정
-    const endpoint = `${API_BASE_URL}/api/v1/users/me/store`;
+    const endpoint = `${SPRING_API_BASE_URL}/v1/users/me/store`;
 
     try {
         const response = await fetch(endpoint, {
             method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}` // 향후 추가
-            }
+            headers: getAuthHeaders()
         });
 
         if (!response.ok) {
@@ -143,10 +163,13 @@ export async function fetchMyStoreInfo() {
         const kakaoCategoryCode = isCafe ? 'CE7' : 'FD6';
 
         return {
-            lat: parseFloat(store.lat),
-            lng: parseFloat(store.lng),
+            lat: store.lat == null ? null : parseFloat(store.lat),
+            lng: store.lng == null ? null : parseFloat(store.lng),
             primaryCategoryGroupCode: kakaoCategoryCode,
-            storeName: store.name
+            storeName: store.name,
+            address: store.address,
+            category: store.category,
+            categoryLabel: store.categoryLabel
         };
 
     } catch (error) {

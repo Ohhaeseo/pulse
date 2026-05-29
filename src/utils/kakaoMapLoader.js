@@ -26,11 +26,11 @@ export const loadKakaoMapSDK = () => {
 
         // 상세 디버깅
         console.log('🔑 환경변수 확인:', {
-            apiKey,
+            apiKey: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
             apiKeyType: typeof apiKey,
             apiKeyLength: apiKey?.length,
             allEnvKeys: Object.keys(import.meta.env),
-            VITE_KAKAO_MAP_API_KEY: import.meta.env.VITE_KAKAO_MAP_API_KEY
+            VITE_KAKAO_MAP_API_KEY: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null
         });
 
         if (!apiKey) {

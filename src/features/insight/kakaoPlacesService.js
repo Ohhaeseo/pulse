@@ -1,4 +1,4 @@
-import { fetchAiMarketingActions } from './api/mapInsightApi.js';
+import { fetchAiMarketingActions, fetchMarketInsightReport } from './api/mapInsightApi.js';
 /**
  * kakaoPlacesService.js
  * 카카오 지도 Places API를 이용한 상권 데이터 실시간 조회
@@ -205,6 +205,31 @@ function searchCategoryAll(ps, category, center, radiusM) {
  * @returns {Promise<object>} marketData (SummaryPanel에서 소비하는 구조)
  */
 export async function fetchRealMarketData(center, radiusM, primaryCategory = 'FD6') {
+    const validCenter = validateCenter(center);
+    const validRadius = validateRadius(radiusM);
+
+    try {
+        return await fetchMarketInsightReport({
+            latitude: validCenter.lat,
+            longitude: validCenter.lng,
+            radius: validRadius,
+            category: primaryCategory,
+        });
+    } catch (backendError) {
+        if (backendError.status === 400) {
+            throw createMarketError({
+                code: 'market_lookup_failed',
+                title: '상권 데이터를 불러오지 못했습니다',
+                message: '지도는 정상으로 열렸지만 현재 상권 데이터 조회 한도 또는 지도 서비스 설정 문제로 리포트를 만들 수 없습니다.',
+                details: { center: validCenter, radius: validRadius, source: 'spring-report' },
+            });
+        }
+
+        logMarket('warn', '[CommercialAnalysis] backend report:failed, falling back to Kakao JS Places', {
+            error: backendError.message,
+        }, false);
+    }
+
     if (!window.kakao?.maps?.services) {
         logMarket('error', '[KakaoMap] sdk:failed', {
             hasKakao: Boolean(window.kakao),
@@ -224,8 +249,6 @@ export async function fetchRealMarketData(center, radiusM, primaryCategory = 'FD
         });
     }
 
-    const validCenter = validateCenter(center);
-    const validRadius = validateRadius(radiusM);
     const ps = new window.kakao.maps.services.Places();
 
     logMarket('info', '[CommercialAnalysis] market lookup:start', {

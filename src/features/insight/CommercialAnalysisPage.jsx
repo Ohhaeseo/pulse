@@ -20,6 +20,7 @@ import SearchBar from './components/SearchBar';
 import { AlertCircle, Loader2, RefreshCw, Search } from 'lucide-react';
 import { MOCK_STORE } from '../../data/marketMockData'; // 가게 좌표는 유지 (추후 API로 교체)
 import { fetchRealMarketData } from './kakaoPlacesService';
+import { fetchMyStoreInfo } from './api/mapInsightApi';
 
 function normalizeMarketError(error) {
     return {
@@ -59,11 +60,12 @@ function EmptyReportPanel({ emptyState, onRadiusChange }) {
 export default function CommercialAnalysisPage() {
     const [radius, setRadius] = useState(500);
     const [map, setMap] = useState(null);
-    const [analysisTarget, setAnalysisTarget] = useState(MOCK_STORE);
+    const [analysisTarget, setAnalysisTarget] = useState(null);
     const [marketData, setMarketData] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isKakaoReady, setIsKakaoReady] = useState(false);
+    const [isTargetReady, setIsTargetReady] = useState(false);
 
     // 카카오 SDK 로드 대기
     useEffect(() => {
@@ -77,9 +79,55 @@ export default function CommercialAnalysisPage() {
         checkKakao();
     }, []);
 
+    useEffect(() => {
+        if (!isKakaoReady) return;
+
+        let cancelled = false;
+
+        const loadStoreTarget = async () => {
+            setIsLoading(true);
+            setError(null);
+
+            try {
+                const store = await fetchMyStoreInfo();
+                let lat = Number(store.lat);
+                let lng = Number(store.lng);
+
+                if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+                    console.warn('[CommercialAnalysis] backend coordinates missing. Using temporary fallback coordinates.', store);
+                    lat = MOCK_STORE.lat;
+                    lng = MOCK_STORE.lng;
+                }
+
+                if (cancelled) return;
+
+                setAnalysisTarget({
+                    storeId: store.storeId || store.id || 'current-store',
+                    storeName: store.storeName,
+                    address: store.address,
+                    lat,
+                    lng,
+                    primaryCategoryGroupCode: store.primaryCategoryGroupCode || 'FD6',
+                });
+                setIsTargetReady(true);
+            } catch (err) {
+                console.warn('[CommercialAnalysis] store target fallback:', err);
+                if (cancelled) return;
+                setAnalysisTarget(MOCK_STORE);
+                setIsTargetReady(true);
+            }
+        };
+
+        loadStoreTarget();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [isKakaoReady]);
+
     // 실제 상권 데이터 조회
     const loadMarketData = useCallback(async () => {
-        if (!isKakaoReady) return;
+        if (!isKakaoReady || !isTargetReady || !analysisTarget) return;
 
         setIsLoading(true);
         setError(null);
@@ -100,7 +148,7 @@ export default function CommercialAnalysisPage() {
         } finally {
             setIsLoading(false);
         }
-    }, [radius, isKakaoReady, analysisTarget]);
+    }, [radius, isKakaoReady, isTargetReady, analysisTarget]);
 
     // 반경 변경 또는 카카오 준비 완료 시 재조회
     useEffect(() => {
@@ -135,7 +183,7 @@ export default function CommercialAnalysisPage() {
             address: place.road_address_name || place.address_name || '',
             lat: parseFloat(place.y),
             lng: parseFloat(place.x),
-            primaryCategoryGroupCode: analysisTarget.primaryCategoryGroupCode || 'FD6',
+            primaryCategoryGroupCode: analysisTarget?.primaryCategoryGroupCode || 'FD6',
         };
 
         setAnalysisTarget(nextTarget);
@@ -159,7 +207,9 @@ export default function CommercialAnalysisPage() {
         loadMarketData();
     };
 
-    const center = { lat: analysisTarget.lat, lng: analysisTarget.lng };
+    const center = analysisTarget
+        ? { lat: analysisTarget.lat, lng: analysisTarget.lng }
+        : { lat: MOCK_STORE.lat, lng: MOCK_STORE.lng };
     const isEmptyReport = marketData?.reportState === 'empty';
 
     return (
@@ -177,7 +227,7 @@ export default function CommercialAnalysisPage() {
 
             {/* 오류 상태 */}
             {!isLoading && error && (
-                <div className="absolute inset-0 bg-white flex flex-col items-center justify-center z-50 rounded-[24px] p-8">
+                <div className="absolute top-0 right-0 bottom-0 w-[40%] bg-white flex flex-col items-center justify-center z-50 rounded-r-[24px] p-8 border-l border-[#E5E8EB]">
                     <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-4">
                         <AlertCircle size={32} className="text-red-500" />
                     </div>
@@ -210,7 +260,7 @@ export default function CommercialAnalysisPage() {
                         center={center}
                         radius={radius}
                         onRadiusChange={handleRadiusChange}
-                        storeName={analysisTarget.storeName}
+                        storeName={analysisTarget?.storeName || MOCK_STORE.storeName}
                         onMapReady={handleMapReady}
                     />
                 </div>
@@ -229,7 +279,7 @@ export default function CommercialAnalysisPage() {
                                     : '조회 중...'}
                             </p>
                             <p className="text-[12px] text-gray-500 mt-1">
-                                {analysisTarget.storeName} 기준
+                                {analysisTarget?.storeName || MOCK_STORE.storeName} 기준
                             </p>
                         </div>
                         <button
