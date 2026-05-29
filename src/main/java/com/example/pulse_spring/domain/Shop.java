@@ -43,10 +43,19 @@ public class Shop {
     @Column(nullable = false)
     private String address; // 가게 주소
 
+    private Double latitude;
+
+    private Double longitude;
+
     @Enumerated(EnumType.STRING)
     private AnalysisStatus status; // AI 분석 상태 (PENDING, COMPLETED, FAILED)
 
     public enum AnalysisStatus {
         PENDING, COMPLETED, FAILED
+    }
+
+    public void updateCoordinates(Double latitude, Double longitude) {
+        this.latitude = latitude;
+        this.longitude = longitude;
     }
 }

@@ -7,6 +7,7 @@ import com.example.pulse_spring.dto.LoginResponse;
 import com.example.pulse_spring.dto.CurrentUserProfileResponse;
 import com.example.pulse_spring.dto.SignupRequest;
 import com.example.pulse_spring.dto.SignupResponse;
+import com.example.pulse_spring.dto.UserStoreResponse;
 import com.example.pulse_spring.repository.ShopRepository;
 import com.example.pulse_spring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final FastApiClient fastApiClient;
+    private final KakaoLocalClient kakaoLocalClient;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
@@ -78,6 +80,11 @@ public class AuthService {
                 .customCategory(info.getCategory() == Category.ETC ? info.getCustomCategory() : null)
                 .status(Shop.AnalysisStatus.PENDING)
                 .build();
+        kakaoLocalClient.geocodeAddress(shop.getAddress())
+                .ifPresent(coordinates -> shop.updateCoordinates(
+                        coordinates.getLatitude(),
+                        coordinates.getLongitude()
+                ));
         shopRepository.save(shop);
 
         // 5. FastAPI로 상점 데이터 분석 비동기 요청 보내기
@@ -117,6 +124,31 @@ public class AuthService {
                 .ownerName(user.getName())
                 .shopName(shop.getName())
                 .shopAddress(shop.getAddress())
+                .build();
+    }
+
+    @Transactional
+    public UserStoreResponse getCurrentStore(String userEmail) {
+        Shop shop = shopRepository.findByUserEmail(userEmail)
+                .orElseThrow(() -> new IllegalStateException("?ъ옣??媛寃??뺣낫瑜?李얠쓣 ???놁뒿?덈떎."));
+
+        if (shop.getLatitude() == null || shop.getLongitude() == null) {
+            kakaoLocalClient.geocodeAddress(shop.getAddress())
+                    .ifPresent(coordinates -> shop.updateCoordinates(
+                            coordinates.getLatitude(),
+                            coordinates.getLongitude()
+                    ));
+        }
+
+        return UserStoreResponse.builder()
+                .id(shop.getId())
+                .name(shop.getName())
+                .address(shop.getAddress())
+                .category(shop.getCategory().name())
+                .categoryLabel(shop.getCategory().getDescription())
+                .customCategory(shop.getCustomCategory())
+                .lat(shop.getLatitude())
+                .lng(shop.getLongitude())
                 .build();
     }
 }

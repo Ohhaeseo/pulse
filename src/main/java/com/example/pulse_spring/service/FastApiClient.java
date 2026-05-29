@@ -128,6 +128,25 @@ public class FastApiClient {
         }
     }
 
+    public Map<String, Object> generateMapInsightActions(MapInsightActionRequest request) {
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    fastApiBaseUrl + "/map-insight/actions",
+                    HttpMethod.POST,
+                    new HttpEntity<>(request, jsonHeaders()),
+                    new ParameterizedTypeReference<>() {}
+            );
+
+            Map<String, Object> body = response.getBody();
+            if (body == null) {
+                throw new IllegalStateException("FastAPI returned an empty map insight response.");
+            }
+            return body;
+        } catch (Exception e) {
+            throw new IllegalStateException("AI 상권 액션 생성에 실패했습니다: " + e.getMessage(), e);
+        }
+    }
+
     private HttpHeaders jsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
