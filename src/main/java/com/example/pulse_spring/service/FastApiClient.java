@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -18,10 +19,19 @@ import java.util.Map;
 @Service
 @RequiredArgsConstructor
 public class FastApiClient {
-    private final RestTemplate restTemplate = new RestTemplate();
+    // FastAPI의 LLM 호출(리뷰 답글/상권 액션)은 수십 초가 걸릴 수 있어 read 타임아웃을 넉넉히 둔다.
+    // 무한 행(hang)은 막되, 정상 LLM 지연은 허용한다.
+    private final RestTemplate restTemplate = createRestTemplate(3000, 60000);
 
     @Value("${fastapi.base-url}")
     private String fastApiBaseUrl;
+
+    private static RestTemplate createRestTemplate(int connectTimeoutMs, int readTimeoutMs) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(connectTimeoutMs);
+        factory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(factory);
+    }
 
     public String sendAnalysisRequest(Long shopId, String shopName, String address, String keyword) {
         Map<String, Object> request = new HashMap<>();

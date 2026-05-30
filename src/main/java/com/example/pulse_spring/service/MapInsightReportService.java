@@ -1,6 +1,5 @@
 package com.example.pulse_spring.service;
 
-import com.example.pulse_spring.dto.MapInsightActionRequest;
 import com.example.pulse_spring.dto.MapInsightReportRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +8,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestTemplate;
@@ -43,11 +43,18 @@ public class MapInsightReportService {
             "HP8", new AnchorConfig(1, "병원")
     );
 
-    private final RestTemplate restTemplate = new RestTemplate();
-    private final FastApiClient fastApiClient;
+    // Kakao Local 호출은 빠른(<1s) 응답이 정상이므로 짧은 타임아웃으로 스레드 점유를 막는다.
+    private final RestTemplate restTemplate = createRestTemplate(3000, 6000);
 
     @Value("${kakao.rest-api-key:}")
     private String restApiKey;
+
+    private static RestTemplate createRestTemplate(int connectTimeoutMs, int readTimeoutMs) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(connectTimeoutMs);
+        factory.setReadTimeout(readTimeoutMs);
+        return new RestTemplate(factory);
+    }
 
     public Map<String, Object> buildReport(MapInsightReportRequest request) {
         if (!StringUtils.hasText(restApiKey)) {
@@ -113,7 +120,10 @@ public class MapInsightReportService {
         }
 
         String anchorType = inferAnchorType(counts, anchorScore);
-        List<Object> actions = generateActions(latitude, longitude, radius, primaryCategory, competitionTotal, densityPerKm2, anchorScore, anchorType);
+        // AI 마케팅 액션(LLM)은 응답이 수십 초 걸릴 수 있어 리포트와 분리한다.
+        // 리포트는 Kakao 기반 상권 데이터만으로 즉시 반환하고,
+        // 프론트엔드가 /api/v1/map-insight/actions 를 별도로 호출해 점진적으로 채운다.
+        List<Object> actions = List.of();
 
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("reportState", "ready");
@@ -200,38 +210,6 @@ public class MapInsightReportService {
         }
 
         return new CategorySearchResult(places.isEmpty() ? "ZERO_RESULT" : "OK", false, places);
-    }
-
-    private List<Object> generateActions(
-            double latitude,
-            double longitude,
-            int radius,
-            String category,
-            int competitionTotal,
-            double densityPerKm2,
-            int anchorScore,
-            String anchorType
-    ) {
-        try {
-            MapInsightActionRequest.MarketSummary summary = new MapInsightActionRequest.MarketSummary(
-                    competitionTotal,
-                    densityPerKm2,
-                    anchorScore,
-                    anchorType
-            );
-            MapInsightActionRequest request = new MapInsightActionRequest(latitude, longitude, radius, category, summary);
-            Map<String, Object> body = fastApiClient.generateMapInsightActions(request);
-            Object data = body.get("data");
-            if (data instanceof Map<?, ?> dataMap) {
-                Object actions = dataMap.get("aiMarketingActions");
-                if (actions instanceof List<?> list) {
-                    return new ArrayList<>(list);
-                }
-            }
-        } catch (Exception ignored) {
-            // The report is still useful without AI action recommendations.
-        }
-        return List.of();
     }
 
     private Map<String, Object> mapPlace(Map<?, ?> source) {
