@@ -216,16 +216,12 @@ export async function fetchRealMarketData(center, radiusM, primaryCategory = 'FD
             category: primaryCategory,
         });
     } catch (backendError) {
-        if (backendError.status === 400) {
-            throw createMarketError({
-                code: 'market_lookup_failed',
-                title: '상권 데이터를 불러오지 못했습니다',
-                message: '지도는 정상으로 열렸지만 현재 상권 데이터 조회 한도 또는 지도 서비스 설정 문제로 리포트를 만들 수 없습니다.',
-                details: { center: validCenter, radius: validRadius, source: 'spring-report' },
-            });
-        }
-
+        // 백엔드 리포트가 실패하면(예: 서버측 Kakao REST 일일 한도 초과로 400)
+        // 클라이언트 사이드 Kakao JS SDK(별도 앱키)로 폴백한다.
+        // 입력값(좌표/반경)은 위에서 이미 검증했으므로 400이라도 JS 경로 재시도가 안전하다.
+        // JS 경로마저 전부 실패하면 아래 allFailed 분기에서 market_lookup_failed 로 처리된다.
         logMarket('warn', '[CommercialAnalysis] backend report:failed, falling back to Kakao JS Places', {
+            status: backendError.status,
             error: backendError.message,
         }, false);
     }

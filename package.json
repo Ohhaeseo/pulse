@@ -11,6 +11,7 @@
         "typecheck": "tsc --noEmit -p tsconfig.json",
         "verify": "npm run lint && npm run typecheck && npm run build",
         "e2e:smoke": "node scripts/playwright-smoke.mjs",
+        "e2e:commercial": "node scripts/playwright-commercial.mjs",
         "preview": "vite preview",
         "predeploy": "npm run build",
         "deploy": "gh-pages -d dist"

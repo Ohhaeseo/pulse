@@ -13,14 +13,14 @@
  *   - 유동인구 분석
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import KakaoMapContainer from './components/KakaoMapContainer';
 import SummaryPanel from './components/SummaryPanel';
 import SearchBar from './components/SearchBar';
 import { AlertCircle, Loader2, RefreshCw, Search } from 'lucide-react';
 import { MOCK_STORE } from '../../data/marketMockData'; // 가게 좌표는 유지 (추후 API로 교체)
 import { fetchRealMarketData } from './kakaoPlacesService';
-import { fetchMyStoreInfo } from './api/mapInsightApi';
+import { fetchMyStoreInfo, fetchAiMarketingActions } from './api/mapInsightApi';
 
 function normalizeMarketError(error) {
     return {
@@ -66,6 +66,9 @@ export default function CommercialAnalysisPage() {
     const [error, setError] = useState(null);
     const [isKakaoReady, setIsKakaoReady] = useState(false);
     const [isTargetReady, setIsTargetReady] = useState(false);
+    const [actionsLoading, setActionsLoading] = useState(false);
+    // 진행 중인 조회를 식별해, 반경/장소가 바뀌면 이전 비동기 결과가 덮어쓰지 않도록 가드한다.
+    const loadIdRef = useRef(0);
 
     // 카카오 SDK 로드 대기
     useEffect(() => {
@@ -125,11 +128,42 @@ export default function CommercialAnalysisPage() {
         };
     }, [isKakaoReady]);
 
+    // AI 마케팅 액션을 별도로(비동기) 조회해 리포트에 채워 넣는다.
+    // 리포트 응답에는 actions가 비어 있으며, LLM 응답(수십 초)이 도착하면 점진적으로 표시된다.
+    const loadAiActions = useCallback(async (report, loadId) => {
+        if (!report || report.reportState !== 'ready') return;
+        if (Array.isArray(report.actions) && report.actions.length > 0) return;
+
+        setActionsLoading(true);
+        try {
+            const actions = await fetchAiMarketingActions({
+                latitude: report.center?.lat ?? analysisTarget?.lat,
+                longitude: report.center?.lng ?? analysisTarget?.lng,
+                radius: report.radius ?? radius,
+                category: report.competition?.categoryGroupCode || analysisTarget?.primaryCategoryGroupCode || 'FD6',
+                marketSummary: {
+                    competitionTotal: report.competition?.total ?? 0,
+                    densityPerKm2: report.competition?.densityPerKm2 ?? 0,
+                    anchorScore: report.anchors?.score ?? 0,
+                    anchorType: report.anchors?.typeLabel ?? '',
+                },
+            });
+
+            // 응답이 도착하는 사이 반경/장소가 바뀌었다면 무시한다.
+            if (loadIdRef.current !== loadId) return;
+            setMarketData((prev) => (prev ? { ...prev, actions } : prev));
+        } finally {
+            if (loadIdRef.current === loadId) setActionsLoading(false);
+        }
+    }, [radius, analysisTarget]);
+
     // 실제 상권 데이터 조회
     const loadMarketData = useCallback(async () => {
         if (!isKakaoReady || !isTargetReady || !analysisTarget) return;
 
+        const loadId = ++loadIdRef.current;
         setIsLoading(true);
+        setActionsLoading(false);
         setError(null);
 
         try {
@@ -139,16 +173,20 @@ export default function CommercialAnalysisPage() {
                 radius,
                 analysisTarget.primaryCategoryGroupCode
             );
+            if (loadIdRef.current !== loadId) return;
             setMarketData(data);
             console.log('✅ 실제 상권 데이터 로드 완료:', data);
+            // 리포트는 즉시 렌더하고, AI 액션은 백그라운드로 채운다.
+            loadAiActions(data, loadId);
         } catch (err) {
             console.error('[CommercialAnalysis] 데이터 조회 실패:', err);
+            if (loadIdRef.current !== loadId) return;
             setMarketData(null);
             setError(normalizeMarketError(err));
         } finally {
-            setIsLoading(false);
+            if (loadIdRef.current === loadId) setIsLoading(false);
         }
-    }, [radius, isKakaoReady, isTargetReady, analysisTarget]);
+    }, [radius, isKakaoReady, isTargetReady, analysisTarget, loadAiActions]);
 
     // 반경 변경 또는 카카오 준비 완료 시 재조회
     useEffect(() => {
@@ -305,6 +343,7 @@ export default function CommercialAnalysisPage() {
                             <SummaryPanel
                                 data={marketData}
                                 onPlaceClick={handlePlaceClick}
+                                actionsLoading={actionsLoading}
                                 showHeader={false}
                             />
                         )}

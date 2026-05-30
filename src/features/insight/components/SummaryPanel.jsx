@@ -9,9 +9,9 @@ import SnapshotCard from './SnapshotCard';
 import CompetitionCard from './CompetitionCard';
 import AnchorCard from './AnchorCard';
 import ActionCard from './ActionCard';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AlertTriangle, RefreshCw, Loader2 } from 'lucide-react';
 
-export default function SummaryPanel({ data, onPlaceClick, onRefresh, showHeader = true }) {
+export default function SummaryPanel({ data, onPlaceClick, onRefresh, actionsLoading = false, showHeader = true }) {
     return (
         <div className="w-full h-full overflow-y-auto bg-[#F5F7FA] rounded-r-[24px] custom-scrollbar">
             {/* 패널 헤더 - 조건부 렌더링 */}
@@ -77,7 +77,7 @@ export default function SummaryPanel({ data, onPlaceClick, onRefresh, showHeader
                 {/* 앵커 분석 */}
                 <AnchorCard anchors={data.anchors} />
 
-                {/* 구분선 + 액션 카드 - 백엔드 연결 시 표시 */}
+                {/* 구분선 + 액션 카드 - AI 응답 도착 시 표시 (백그라운드 로드) */}
                 {data.actions && data.actions.length > 0 && (
                     <>
                         <div className="border-t-2 border-gray-200 pt-5 mt-2">
@@ -90,6 +90,18 @@ export default function SummaryPanel({ data, onPlaceClick, onRefresh, showHeader
                             <ActionCard key={i} action={action} index={i} />
                         ))}
                     </>
+                )}
+
+                {/* AI 액션 생성 중 안내 (리포트는 이미 표시됨) */}
+                {actionsLoading && (!data.actions || data.actions.length === 0) && (
+                    <div className="border-t-2 border-gray-200 pt-5 mt-2">
+                        <div className="flex items-center gap-2.5 rounded-xl bg-blue-50 border border-blue-100 p-4">
+                            <Loader2 size={18} className="text-[#002B7A] animate-spin flex-shrink-0" />
+                            <p className="text-[13px] text-gray-700 leading-relaxed">
+                                AI가 이번 주 실행 액션을 만들고 있어요. 잠시만 기다려 주세요.
+                            </p>
+                        </div>
+                    </div>
                 )}
 
                 {/* 하단 노트 */}

@@ -13,7 +13,7 @@ export default function ActionCard({ action, index }) {
     };
 
     return (
-        <div className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
+        <div data-testid="map-insight-action-card" className="bg-gradient-to-br from-blue-50 to-white rounded-xl p-5 border border-blue-100 shadow-sm hover:shadow-md transition-shadow">
             {/* 헤더 */}
             <div className="flex items-start gap-3 mb-3">
                 <div className="w-8 h-8 bg-[#002B7A] rounded-lg flex items-center justify-center shrink-0">
