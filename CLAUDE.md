@@ -77,6 +77,7 @@ UI 변경 시 1440×900, 1280×800 두 해상도에서 좌·우 pane 무스크�
 - `/pr` — 한국어 커밋 메시지 + PR 본문 생성 (수동 호출)
 - `/security` — 보안 경계 검토: auth, env, API, 사용자 입력 (수동 호출)
 - `frontend-dev` skill — 명시적 호출 시에만 활성화 (`/frontend-dev`)
+- `pulse-design` skill — 새 화면 제작·리디자인 시 디자인 기준 전체 제공 (`/pulse-design`). 색상·타이포·간격·컴포넌트·애니메이션 규칙 포함. tailwind.config.js neutral/error 토큰 추가 선행 필요.
 
 **Subagents**
 - `ui-ux-reviewer` — UI 구현 완료 후 독립 UX 검토, 코드 정적 분석 (read-only)

@@ -1,66 +1,94 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { COLORS } from '../../constants';
-
+import { motion, useReducedMotion } from 'framer-motion';
+import Button from '../ui/Button';
 import ThreeBackground from '../../features/auth/ThreeBackground';
+
+const LINE1 = '분석부터 영상제작까지';
+const LINE2 = 'PULSE가 해드립니다';
+
+const AnimatedLine = ({ words, baseDelay, shouldAnimate }) => (
+    <>
+        {words.map((word, i) => (
+            <motion.span
+                key={`${baseDelay}-${i}`}
+                initial={shouldAnimate ? { opacity: 0, y: 28 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                    duration: 0.55,
+                    delay: baseDelay + i * 0.07,
+                    ease: [0.22, 1, 0.36, 1],
+                }}
+                className="inline-block mr-[0.22em]"
+            >
+                {word === 'PULSE가' ? (
+                    <span className="inline-flex items-end gap-0">
+                        <img
+                            src={`${import.meta.env.BASE_URL}PULSE_Logo_full.png`}
+                            alt="PULSE"
+                            className="h-[76px] md:h-[116px] w-auto flex-shrink-0"
+                        />
+                        <span className="text-text-main leading-none translate-y-[-10px] md:translate-y-[-16px]">가</span>
+                    </span>
+                ) : word}
+            </motion.span>
+        ))}
+    </>
+);
 
 const HeroSection = () => {
     const navigate = useNavigate();
+    const shouldAnimate = !useReducedMotion();
+
+    const words1 = LINE1.split(' ');
+    const words2 = LINE2.split(' ');
+    const totalWords = words1.length + words2.length;
 
     return (
-        <section className="relative h-screen flex items-center px-6 overflow-hidden bg-[#F5F7FA]">
-            {/* 3D Background (Heart) - Positioned Right for Landing Page */}
+        <section className="relative min-h-dvh flex items-center px-6 overflow-hidden bg-bg-page">
             <div className="absolute inset-0 z-0">
                 <ThreeBackground position={[2.5, 0, 0]} scale={1.2} />
             </div>
 
-            {/* Content Overlay */}
-            <div className="relative z-10 max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            <div className="relative z-10 max-w-[1200px] mx-auto w-full grid grid-cols-1 md:grid-cols-2 gap-12 items-center py-10 md:py-16 lg:py-24">
                 <div className="text-left">
-                    <motion.div
-                        initial={{ opacity: 0, y: 15 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, ease: 'easeOut' }}
-                    >
-                        <h1 className="text-[48px] md:text-[80px] font-bold leading-[1.2] mb-6 tracking-tight text-[#191F28] break-keep">
-                            복잡한 마케팅은<br />
-                            <span className="text-[#002B7A]">PULSE</span>에게 맡기세요.
-                        </h1>
-                    </motion.div>
+                    <h1 className="text-[36px] md:text-[64px] font-bold leading-[1.1] tracking-tight text-text-main break-keep mb-6">
+                        <span className="block">
+                            <AnimatedLine words={words1} baseDelay={0} shouldAnimate={shouldAnimate} />
+                        </span>
+                        <span className="flex items-end flex-wrap leading-none gap-x-[0.22em]">
+                            <AnimatedLine words={words2} baseDelay={words1.length * 0.07 + 0.05} shouldAnimate={shouldAnimate} />
+                        </span>
+                    </h1>
 
                     <motion.p
-                        initial={{ opacity: 0, y: 15 }}
+                        initial={shouldAnimate ? { opacity: 0, y: 16 } : false}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.05, ease: 'easeOut' }}
-                        className="text-[18px] md:text-[20px] mb-10 font-medium text-[#4B5563] leading-relaxed break-keep"
+                        transition={{ duration: 0.5, delay: totalWords * 0.07 + 0.1, ease: [0.22, 1, 0.36, 1] }}
+                        className="text-[18px] md:text-[20px] mb-10 font-medium text-neutral-600 leading-relaxed break-keep"
                     >
-                        오늘도 맛있는 요리에만 집중하실 수 있도록,<br className="hidden md:block" />
-                        데이터 분석부터 홍보 영상 제작까지 <span className="text-[#002B7A]">PULSE</span>가 다 해드릴게요.
+                        외식업 자영업자를 위한 고객 분석 기반 홍보 실행 플랫폼
                     </motion.p>
 
                     <motion.div
-                        initial={{ opacity: 0, y: 15 }}
+                        initial={shouldAnimate ? { opacity: 0, y: 16 } : false}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.1, ease: 'easeOut' }}
+                        transition={{ duration: 0.5, delay: totalWords * 0.07 + 0.2, ease: [0.22, 1, 0.36, 1] }}
                         className="flex flex-wrap gap-4"
                     >
-                        <button
-                            onClick={() => navigate('/signup')}
-                            className="px-8 py-4 rounded-full text-white text-[17px] font-bold shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 bg-[#002B7A] hover:bg-[#001F57]"
-                        >
+                        <Button size="lg" variant="primary" onClick={() => navigate('/signup')}>
                             무료로 시작하기
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            size="lg"
+                            variant="ghost"
                             onClick={() => document.getElementById('problem-section')?.scrollIntoView({ behavior: 'smooth' })}
-                            className="px-8 py-4 rounded-full bg-[#E0E7FF] text-[#002B7A] text-[17px] font-bold hover:bg-[#C7D2FE] transition-colors"
                         >
                             더 알아보기
-                        </button>
+                        </Button>
                     </motion.div>
                 </div>
-                {/* Right side is reserved for the 3D Heart */}
-                <div className="hidden md:block"></div>
+
             </div>
         </section>
     );

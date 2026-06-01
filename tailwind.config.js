@@ -28,8 +28,26 @@ export default {
                 text: {
                     main: '#191F28',          // Text Main
                 },
+                // Feature Section 전용 배경 wipe 단계 (primary #002B7A 파생 불투명 blue)
+                feature: {
+                    1: '#002B7A',
+                    2: '#123F8F',
+                    3: '#21539C',
+                    4: '#3466A9',
+                    5: '#4577B5',
+                },
+                neutral: {
+                    50:  '#F8FAFC',  // 섹션 배경, 아주 연한 구분 (slate-50)
+                    100: '#F1F5F9',  // 태그 배경 (slate-100)
+                    200: '#E2E8F0',  // 구분선, 카드 테두리 (slate-200)
+                    300: '#CBD5E1',  // 비활성 요소 배경 (slate-300)
+                    400: '#94A3B8',  // placeholder, 힌트 텍스트 (slate-400)
+                    600: '#475569',  // 보조 본문 텍스트 (slate-600)
+                    900: '#0F172A',  // 진한 텍스트 (slate-900)
+                },
                 success: '#059669',
                 warning: '#D97706',
+                error: '#DC2626',
             },
             fontFamily: {
                 pretendard: ['"Pretendard Variable"', 'Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'Roboto', 'sans-serif'],
@@ -66,5 +84,16 @@ export default {
             }
         },
     },
+    safelist: [
+        'bg-primary/85',
+        'bg-primary/70',
+        'bg-primary/55',
+        'bg-primary/40',
+        'bg-feature-1',
+        'bg-feature-2',
+        'bg-feature-3',
+        'bg-feature-4',
+        'bg-feature-5',
+    ],
     plugins: [],
 }

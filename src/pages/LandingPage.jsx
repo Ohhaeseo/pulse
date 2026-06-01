@@ -1,26 +1,27 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import Lenis from '@studio-freight/lenis';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
+import ScrollProgress from '../components/landing/ScrollProgress';
 import Header from '../components/landing/Header';
 import HeroSection from '../components/landing/HeroSection';
 import ProblemSection from '../components/landing/ProblemSection';
-import SolutionSection from '../components/landing/SolutionSection';
+import ShowcaseSection from '../components/landing/ShowcaseSection';
 import FeatureSection from '../components/landing/FeatureSection';
+import HowItWorksSection from '../components/landing/HowItWorksSection';
+import ComparisonSection from '../components/landing/ComparisonSection';
 import SocialProofSection from '../components/landing/SocialProofSection';
+import FAQSection from '../components/landing/FAQSection';
 import CTASection from '../components/landing/CTASection';
 import Footer from '../components/landing/Footer';
-import { COLORS } from '../constants';
-
-import HowItWorksSection from '../components/landing/HowItWorksSection';
-import FAQSection from '../components/landing/FAQSection';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const LandingPage = () => {
+    const lenisRef = useRef(null);
+
     useEffect(() => {
-        // [CSS 오버라이드]: globals.css의 html, body { h-full overflow-hidden } 설정 강제 해제
         const originalHtmlHeight = document.documentElement.style.height;
         const originalHtmlOverflow = document.documentElement.style.overflow;
         const originalBodyHeight = document.body.style.height;
@@ -29,9 +30,10 @@ const LandingPage = () => {
         document.documentElement.style.height = 'auto';
         document.documentElement.style.overflow = 'auto';
         document.body.style.height = 'auto';
-        document.body.style.overflow = 'auto';
+        // body는 visible 유지 — overflow:auto면 sticky 좌측 패널의 스크롤 컨테이너가
+        // body로 잡혀 position:sticky가 동작하지 않음 (FeatureSection lg sticky 패널)
+        document.body.style.overflow = 'visible';
 
-        // Initialize Lenis for smooth scroll (GSAP ScrollTrigger synced)
         const lenis = new Lenis({
             duration: 1.2,
             easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
@@ -39,6 +41,8 @@ const LandingPage = () => {
             gestureDirection: 'vertical',
             smooth: true,
         });
+
+        lenisRef.current = lenis;
 
         lenis.on('scroll', ScrollTrigger.update);
 
@@ -50,9 +54,9 @@ const LandingPage = () => {
 
         return () => {
             lenis.destroy();
+            lenisRef.current = null;
             gsap.ticker.remove(lenis.raf);
 
-            // [클린업]: CSS 상태 원복
             document.documentElement.style.height = originalHtmlHeight;
             document.documentElement.style.overflow = originalHtmlOverflow;
             document.body.style.height = originalBodyHeight;
@@ -61,13 +65,18 @@ const LandingPage = () => {
     }, []);
 
     return (
-        <div className="font-pretendard" style={{ backgroundColor: COLORS.bgPage }}>
+        <div className="font-pretendard bg-bg-page">
+            <ScrollProgress />
             <Header />
+            {/* fixed 헤더 높이 보정 spacer */}
+            <div className="h-[65px]" />
             <main>
                 <HeroSection />
                 <ProblemSection />
-                <FeatureSection />
+                <ShowcaseSection />
+                <FeatureSection lenisRef={lenisRef} />
                 <HowItWorksSection />
+                <ComparisonSection />
                 <SocialProofSection />
                 <FAQSection />
                 <CTASection />
