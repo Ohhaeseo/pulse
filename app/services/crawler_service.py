@@ -53,6 +53,8 @@ class CrawlerService:
     ) -> str:
         normalized_store = cls._normalize_search_text(store_name)
         normalized_address = cls._normalize_search_text(address)
+        if normalized_address in {"주소 미입력", "미입력"}:
+            normalized_address = ""
         address_parts = normalized_address.split()
         concise_address = " ".join(address_parts[:4]) if address_parts else ""
         if include_address and normalized_store and concise_address:
@@ -403,6 +405,15 @@ class CrawlerService:
                 await page.goto(search_url, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(2500)
 
+                body_text = await page.locator("body").inner_text(timeout=5000)
+                if "서비스 이용이 제한" in body_text or "과도한 접근 요청" in body_text:
+                    logger.warning(
+                        "[Naver] Access restricted by Naver Place while searching '%s': %s",
+                        query,
+                        re.sub(r"\s+", " ", body_text).strip()[:220],
+                    )
+                    return []
+
                 detail_url = await self._resolve_naver_detail_url(page, store_name, address)
                 if not detail_url:
                     logger.warning("[Naver] No detail page found from search results.")
@@ -493,6 +504,15 @@ class CrawlerService:
                 review_url = f"https://place.map.kakao.com/{data_id}#review"
                 await page.goto(review_url, wait_until="networkidle", timeout=30000)
                 await page.wait_for_timeout(2500)
+
+                body_text = await page.locator("body").inner_text(timeout=5000)
+                if "매장주 요청으로 후기가 제공되지 않는 장소" in body_text or "후기미제공" in body_text:
+                    logger.warning(
+                        "[Kakao] Place reviews are unavailable for '%s' (%s). Kakao page says reviews are not provided.",
+                        best_candidate.get("title") or store_name,
+                        data_id,
+                    )
+                    return []
 
                 stagnant_rounds = 0
                 max_rounds = 35

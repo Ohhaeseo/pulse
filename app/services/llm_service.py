@@ -185,6 +185,69 @@ class LLMService:
         """
         return f"https://api.dicebear.com/7.x/adventurer/svg?seed={seed}"
 
+    def _build_local_persona_response(
+        self,
+        topic_id: int,
+        keywords: List[str],
+        reviews: List[Dict],
+        percentage: float,
+    ) -> Dict[str, Any]:
+        safe_keywords = [keyword for keyword in keywords if keyword][:3] or ["리뷰", "방문", "만족"]
+        first_keyword = safe_keywords[0]
+        avg_rating = self._calculate_avg_rating(reviews)
+        sample_text = ""
+        for review in reviews:
+            sample_text = review.get("text") or review.get("raw_text") or ""
+            if sample_text:
+                break
+        sample_text = sample_text[:80] if sample_text else "리뷰 데이터가 더 쌓이면 세부 패턴을 확인할 수 있습니다."
+
+        return {
+            "nickname": f"{first_keyword} 중심 고객",
+            "tags": safe_keywords,
+            "summary": f"{first_keyword} 키워드에 반응하는 고객 그룹입니다. 전체 리뷰 중 약 {percentage}% 비중으로 추정됩니다.",
+            "journey": {
+                "explore": {
+                    "label": "탐색",
+                    "action": f"{first_keyword} 관련 리뷰와 메뉴 정보를 확인합니다.",
+                    "thought": "방문 전에 실패하지 않을 선택인지 확인하고 싶어합니다.",
+                    "type": "neutral",
+                    "touchpoint": "검색/지도/리뷰",
+                    "painPoint": None,
+                    "opportunity": "대표 메뉴, 가격, 사진을 한눈에 보이게 정리하세요.",
+                },
+                "visit": {
+                    "label": "방문",
+                    "action": "매장 위치와 대기 여부를 확인하고 방문합니다.",
+                    "thought": "리뷰에서 본 장점이 실제로도 느껴지는지 확인합니다.",
+                    "type": "neutral",
+                    "touchpoint": "매장 입구/대기",
+                    "painPoint": None,
+                    "opportunity": "입구 안내와 대기 정보를 명확히 제공하세요.",
+                },
+                "eat": {
+                    "label": "식사",
+                    "action": "리뷰에서 언급된 메뉴를 중심으로 주문합니다.",
+                    "thought": sample_text,
+                    "type": "good" if avg_rating >= 4 else "neutral",
+                    "touchpoint": "메뉴/테이블",
+                    "painPoint": None,
+                    "opportunity": "리뷰에서 반복되는 만족 포인트를 메뉴판과 홍보 문구에 반영하세요.",
+                },
+                "share": {
+                    "label": "공유",
+                    "action": "만족한 경험을 리뷰나 지인 추천으로 공유합니다.",
+                    "thought": "다음에도 방문할 이유가 있는지 정리합니다.",
+                    "type": "good" if avg_rating >= 4 else "neutral",
+                    "touchpoint": "리뷰/SNS",
+                    "painPoint": None,
+                    "opportunity": "사진을 찍기 좋은 포인트와 재방문 혜택을 준비하세요.",
+                },
+            },
+            "overall_comment": f"{first_keyword} 키워드가 반복되는 고객군입니다. LLM 호출이 실패해도 리뷰 기반 기본 분석으로 화면을 유지합니다.",
+            "action_recommendation": f"{first_keyword}와 연결되는 대표 메뉴, 사진, 리뷰 문구를 매장 상세와 홍보 콘텐츠에 우선 노출하세요.",
+        }
+
     def _map_persona_response(
         self,
         persona_index: int,
@@ -336,6 +399,7 @@ JSON 없이 텍스트만 출력하세요.
             
         except Exception as e:
             logger.error(f"❌ Error generating persona for topic {topic_id}: {e}")
+            return self._build_local_persona_response(topic_id, keywords, reviews, percentage)
             # Fallback 데이터 반환
             return {
                 "nickname": f"고객 그룹 {topic_id}",
