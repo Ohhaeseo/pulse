@@ -12,9 +12,20 @@ export default function JourneyMapSection({ persona }) {
         { key: 'share', label: '공유', icon: <Share2 size={16} /> },
     ];
 
+    const defaultJourney = {
+        action: '분석 데이터가 충분하지 않습니다.',
+        thought: '리뷰 데이터 기반으로 다시 분석 중입니다.',
+        type: 'neutral',
+        touchpoint: '-',
+        painPoint: null,
+        opportunity: '리뷰가 더 쌓이면 더 구체적인 제안을 보여줄 수 있습니다.'
+    };
+    const journey = persona.journey || {};
+
     const timelineData = stages.map(stage => ({
         ...stage,
-        ...persona.journey[stage.key]
+        ...defaultJourney,
+        ...(journey[stage.key] || {})
     }));
 
     return (

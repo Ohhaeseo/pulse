@@ -33,9 +33,24 @@ export const loadKakaoMapSDK = () => {
             VITE_KAKAO_MAP_API_KEY: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null
         });
 
-        if (!apiKey) {
-            reject(new Error('Kakao Map API 키가 설정되지 않았습니다. .env 파일을 확인해주세요.'));
+        if (!apiKey || apiKey.includes('your_')) {
+            console.warn('⚠️ Kakao Map API 키가 설정되지 않아 Mock 객체를 사용합니다.');
+            window.kakao = window.kakao || {};
+            window.kakao.maps = window.kakao.maps || {
+                load: function(cb) { cb(); },
+                LatLng: function(lat, lng) { this.lat = lat; this.lng = lng; },
+                Map: function() { return { setCenter: ()=>{}, setLevel: ()=>{} }; },
+                Marker: function() { return { setMap: ()=>{}, setPosition: ()=>{} }; },
+                InfoWindow: function() { return { open: ()=>{}, close: ()=>{} }; },
+                services: {
+                    Geocoder: function() { this.addressSearch = function(addr, cb) { cb([{y: 37.5665, x: 126.9780}], 'OK'); }; },
+                    Places: function() { this.keywordSearch = function(kw, cb) { cb([], 'OK'); }; },
+                    Status: { OK: 'OK', ZERO_RESULT: 'ZERO_RESULT', ERROR: 'ERROR' }
+                }
+            };
+            isLoaded = true;
             isLoading = false;
+            resolve(window.kakao);
             return;
         }
 

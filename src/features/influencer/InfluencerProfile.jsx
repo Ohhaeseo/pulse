@@ -1,39 +1,90 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { User, Instagram, Youtube, Hash, Edit3, CheckCircle2, Camera } from 'lucide-react';
+import { fetchCurrentProfile } from '../auth/api/authApi';
 
-const MOCK_INFLUENCER_DATA = {
-    name: '테스트 인플루언서',
-    email: 'influencer@pulse.com',
-    bio: '성수동 기반 로컬 푸드 크리에이터 🍜 | 맛있는 곳이라면 어디든!',
-    joinDate: '2025.03.15',
-    instagram: '@test_influencer',
+const EMPTY_PROFILE = {
+    name: '',
+    email: '',
+    bio: '',
+    joinDate: '',
+    instagram: '',
     youtube: '',
-    tags: ['#한식', '#카페', '#브런치', '#음식리뷰'],
+    tags: [],
+    instagramFollowers: 0,
+    youtubeSubscribers: 0,
+    avgViews: 0,
     stats: {
-        accepted: 3,
-        totalEarned: 100000,
-        pending: 2,
-    }
+        accepted: 0,
+        totalEarned: 0,
+        pending: 0,
+    },
+};
+
+const formatNumber = (value) => {
+    const number = Number(value || 0);
+    if (number >= 10000) return `${(number / 10000).toFixed(number % 10000 === 0 ? 0 : 1)}만`;
+    return number.toLocaleString();
+};
+
+const mapProfile = (profile) => {
+    const influencer = profile?.influencerProfile || {};
+    const tags = [
+        ...(influencer.niches || []),
+        ...(influencer.keywords || []),
+    ].filter(Boolean);
+
+    return {
+        ...EMPTY_PROFILE,
+        name: influencer.displayName || profile?.name || '',
+        email: profile?.email || influencer.email || '',
+        bio: influencer.bio || '',
+        joinDate: influencer.createdAt ? influencer.createdAt.slice(0, 10) : '',
+        instagram: influencer.instagramUrl || '',
+        youtube: influencer.youtubeUrl || '',
+        tags: tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`),
+        instagramFollowers: influencer.instagramFollowers || 0,
+        youtubeSubscribers: influencer.youtubeSubscribers || 0,
+        avgViews: influencer.avgViews || 0,
+    };
 };
 
 export default function InfluencerProfile() {
-    const [data, setData] = useState(MOCK_INFLUENCER_DATA);
+    const [data, setData] = useState(EMPTY_PROFILE);
     const [editingTag, setEditingTag] = useState('');
     const [isEditMode, setIsEditMode] = useState(false);
     const [saved, setSaved] = useState(false);
 
-    const handleAddTag = (e) => {
-        if (e.key === 'Enter' && editingTag.trim()) {
-            const tag = editingTag.startsWith('#') ? editingTag.trim() : `#${editingTag.trim()}`;
-            if (!data.tags.includes(tag)) {
-                setData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
-            }
-            setEditingTag('');
+    useEffect(() => {
+        let ignore = false;
+        fetchCurrentProfile()
+            .then((profile) => {
+                if (!ignore && profile?.role === 'INFLUENCER') {
+                    setData(mapProfile(profile));
+                }
+            })
+            .catch((error) => console.warn('Influencer profile load failed:', error));
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    const stats = useMemo(() => ([
+        { label: '수락한 제안', value: data.stats.accepted, unit: '건', color: 'text-[#002B7A]' },
+        { label: '대기중인 제안', value: data.stats.pending, unit: '건', color: 'text-[#FF5A36]' },
+        { label: '누적 원고료', value: data.stats.totalEarned.toLocaleString(), unit: '원', color: 'text-[#191F28]' },
+    ]), [data.stats]);
+
+    const handleAddTag = (event) => {
+        if (event.key !== 'Enter' || !editingTag.trim()) return;
+        const tag = editingTag.startsWith('#') ? editingTag.trim() : `#${editingTag.trim()}`;
+        if (!data.tags.includes(tag)) {
+            setData(prev => ({ ...prev, tags: [...prev.tags, tag] }));
         }
+        setEditingTag('');
     };
 
     const handleRemoveTag = (tag) => {
-        setData(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
+        setData(prev => ({ ...prev, tags: prev.tags.filter(item => item !== tag) }));
     };
 
     const handleSave = () => {
@@ -44,10 +95,7 @@ export default function InfluencerProfile() {
 
     return (
         <div className="flex-1 flex flex-col gap-5 mt-3 overflow-y-auto custom-scrollbar pb-6">
-
-            {/* Profile Card */}
             <div className="bg-white rounded-[24px] border border-[#E5E8EB] p-8 flex items-start gap-6">
-                {/* Avatar */}
                 <div className="relative shrink-0">
                     <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#002B7A] to-[#4A7FD4] flex items-center justify-center shadow-md">
                         <User size={36} className="text-white" />
@@ -59,33 +107,33 @@ export default function InfluencerProfile() {
                     )}
                 </div>
 
-                {/* Info */}
                 <div className="flex-1 min-w-0">
                     {isEditMode ? (
                         <div className="flex flex-col gap-3">
                             <input
                                 value={data.name}
-                                onChange={e => setData(p => ({ ...p, name: e.target.value }))}
+                                onChange={event => setData(prev => ({ ...prev, name: event.target.value }))}
                                 className="text-[22px] font-bold text-[#191F28] border-b-2 border-[#002B7A] outline-none bg-transparent w-full"
                             />
                             <textarea
                                 value={data.bio}
-                                onChange={e => setData(p => ({ ...p, bio: e.target.value }))}
+                                onChange={event => setData(prev => ({ ...prev, bio: event.target.value }))}
                                 rows={2}
                                 className="text-[15px] text-[#4E5968] border border-[#E5E8EB] rounded-[10px] p-2 outline-none resize-none bg-[#F9FAFB] focus:border-[#002B7A] transition-colors"
                             />
                         </div>
                     ) : (
                         <>
-                            <h2 className="text-[22px] font-bold text-[#191F28]">{data.name}</h2>
-                            <p className="text-[14px] text-[#8B95A1] mt-0.5">{data.email}</p>
-                            <p className="text-[15px] text-[#4E5968] mt-2 leading-relaxed">{data.bio}</p>
-                            <p className="text-[12px] text-[#8B95A1] mt-2">가입일: {data.joinDate}</p>
+                            <h2 className="text-[22px] font-bold text-[#191F28]">{data.name || '인플루언서 프로필'}</h2>
+                            <p className="text-[14px] text-[#8B95A1] mt-0.5">{data.email || '이메일 정보 없음'}</p>
+                            <p className="text-[15px] text-[#4E5968] mt-2 leading-relaxed">
+                                {data.bio || '가입 시 입력한 소개 문구가 여기에 표시됩니다.'}
+                            </p>
+                            {data.joinDate && <p className="text-[12px] text-[#8B95A1] mt-2">가입일: {data.joinDate}</p>}
                         </>
                     )}
                 </div>
 
-                {/* Edit Button */}
                 <div className="shrink-0 flex items-center gap-2">
                     {isEditMode ? (
                         <>
@@ -105,13 +153,8 @@ export default function InfluencerProfile() {
                 </div>
             </div>
 
-            {/* Stats Strip */}
             <div className="grid grid-cols-3 gap-4">
-                {[
-                    { label: '수락한 제안', value: data.stats.accepted, unit: '건', color: 'text-[#002B7A]' },
-                    { label: '대기중인 제안', value: data.stats.pending, unit: '건', color: 'text-[#FF5A36]' },
-                    { label: '누적 원고료', value: data.stats.totalEarned.toLocaleString(), unit: '원', color: 'text-[#191F28]' },
-                ].map(stat => (
+                {stats.map(stat => (
                     <div key={stat.label} className="bg-white rounded-[20px] border border-[#E5E8EB] p-6 flex flex-col gap-1">
                         <p className="text-[13px] text-[#8B95A1] font-medium">{stat.label}</p>
                         <p className={`text-[28px] font-bold ${stat.color}`}>
@@ -121,67 +164,52 @@ export default function InfluencerProfile() {
                 ))}
             </div>
 
-            {/* Channel Info */}
-            <div className="bg-white rounded-[24px] border border-[#E5E8EB] p-6 flex flex-col gap-5">
-                <h3 className="text-[18px] font-bold text-[#191F28]">채널 정보</h3>
-
-                <div className="flex flex-col gap-4">
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-[10px] bg-gradient-to-br from-[#E1306C] to-[#FCAF45] flex items-center justify-center shrink-0">
-                            <Instagram size={20} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13px] text-[#8B95A1] font-medium">Instagram</p>
-                            {isEditMode ? (
-                                <input
-                                    value={data.instagram}
-                                    onChange={e => setData(p => ({ ...p, instagram: e.target.value }))}
-                                    placeholder="@your_handle"
-                                    className="text-[15px] text-[#191F28] font-medium border-b border-[#E5E8EB] outline-none w-full bg-transparent focus:border-[#002B7A] transition-colors"
-                                />
-                            ) : (
-                                <p className="text-[15px] text-[#191F28] font-medium">{data.instagram || '—'}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-[10px] bg-[#FF0000] flex items-center justify-center shrink-0">
-                            <Youtube size={20} className="text-white" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-[13px] text-[#8B95A1] font-medium">YouTube</p>
-                            {isEditMode ? (
-                                <input
-                                    value={data.youtube}
-                                    onChange={e => setData(p => ({ ...p, youtube: e.target.value }))}
-                                    placeholder="채널 URL을 입력하세요"
-                                    className="text-[15px] text-[#191F28] font-medium border-b border-[#E5E8EB] outline-none w-full bg-transparent focus:border-[#002B7A] transition-colors"
-                                />
-                            ) : (
-                                <p className="text-[15px] text-[#8B95A1]">{data.youtube || '아직 연결된 채널이 없습니다.'}</p>
-                            )}
-                        </div>
-                    </div>
-                </div>
+            <div className="grid grid-cols-3 gap-4">
+                <MetricCard label="Instagram 팔로워" value={formatNumber(data.instagramFollowers)} />
+                <MetricCard label="YouTube 구독자" value={formatNumber(data.youtubeSubscribers)} />
+                <MetricCard label="평균 조회수" value={formatNumber(data.avgViews)} />
             </div>
 
-            {/* Activity Tags */}
+            <div className="bg-white rounded-[24px] border border-[#E5E8EB] p-6 flex flex-col gap-5">
+                <h3 className="text-[18px] font-bold text-[#191F28]">채널 정보</h3>
+                <ChannelRow
+                    icon={<Instagram size={20} className="text-white" />}
+                    iconClassName="bg-gradient-to-br from-[#E1306C] to-[#FCAF45]"
+                    label="Instagram"
+                    value={data.instagram}
+                    placeholder="@your_handle"
+                    isEditMode={isEditMode}
+                    onChange={value => setData(prev => ({ ...prev, instagram: value }))}
+                />
+                <ChannelRow
+                    icon={<Youtube size={20} className="text-white" />}
+                    iconClassName="bg-[#FF0000]"
+                    label="YouTube"
+                    value={data.youtube}
+                    placeholder="채널 URL을 입력하세요"
+                    isEditMode={isEditMode}
+                    onChange={value => setData(prev => ({ ...prev, youtube: value }))}
+                />
+            </div>
+
             <div className="bg-white rounded-[24px] border border-[#E5E8EB] p-6 flex flex-col gap-4">
                 <h3 className="text-[18px] font-bold text-[#191F28] flex items-center gap-2"><Hash size={18} /> 활동 분야</h3>
                 <div className="flex flex-wrap gap-2">
+                    {data.tags.length === 0 && !isEditMode && (
+                        <span className="text-[14px] text-[#8B95A1]">가입 시 입력한 분야와 키워드가 여기에 표시됩니다.</span>
+                    )}
                     {data.tags.map(tag => (
                         <span key={tag} className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F0F5FF] text-[#002B7A] font-bold text-[14px] rounded-full border border-[#CFE5FF]">
                             {tag}
                             {isEditMode && (
-                                <button onClick={() => handleRemoveTag(tag)} className="text-[#8B95A1] hover:text-[#4E5968]">✕</button>
+                                <button onClick={() => handleRemoveTag(tag)} className="text-[#8B95A1] hover:text-[#4E5968]">x</button>
                             )}
                         </span>
                     ))}
                     {isEditMode && (
                         <input
                             value={editingTag}
-                            onChange={e => setEditingTag(e.target.value)}
+                            onChange={event => setEditingTag(event.target.value)}
                             onKeyDown={handleAddTag}
                             placeholder="+ 태그 추가 (Enter)"
                             className="px-3 py-1.5 border border-dashed border-[#CFE5FF] rounded-full text-[14px] text-[#8B95A1] outline-none bg-transparent focus:border-[#002B7A] transition-colors min-w-[120px]"
@@ -189,7 +217,38 @@ export default function InfluencerProfile() {
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
 
+function MetricCard({ label, value }) {
+    return (
+        <div className="bg-white rounded-[20px] border border-[#E5E8EB] p-5 flex flex-col gap-1">
+            <p className="text-[13px] text-[#8B95A1] font-medium">{label}</p>
+            <p className="text-[24px] font-bold text-[#191F28]">{value}</p>
+        </div>
+    );
+}
+
+function ChannelRow({ icon, iconClassName, label, value, placeholder, isEditMode, onChange }) {
+    return (
+        <div className="flex items-center gap-4">
+            <div className={`w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 ${iconClassName}`}>
+                {icon}
+            </div>
+            <div className="flex-1 min-w-0">
+                <p className="text-[13px] text-[#8B95A1] font-medium">{label}</p>
+                {isEditMode ? (
+                    <input
+                        value={value}
+                        onChange={event => onChange(event.target.value)}
+                        placeholder={placeholder}
+                        className="text-[15px] text-[#191F28] font-medium border-b border-[#E5E8EB] outline-none w-full bg-transparent focus:border-[#002B7A] transition-colors"
+                    />
+                ) : (
+                    <p className="text-[15px] text-[#191F28] font-medium">{value || '연결된 채널이 없습니다.'}</p>
+                )}
+            </div>
         </div>
     );
 }

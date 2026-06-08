@@ -111,6 +111,22 @@ const SignupForm = ({ onSwitch }) => {
         }
     };
 
+    const toCategoryEnum = (category, customCategory) => {
+        const value = String(category || '').trim();
+        const custom = String(customCategory || '').trim();
+        const validEnums = ['KOREAN', 'JAPANESE', 'CHINESE', 'WESTERN', 'CAFE_DESSERT', 'BAR', 'ETC'];
+
+        if (validEnums.includes(value)) return value;
+        if (custom) return 'ETC';
+        if (value.includes('중') || value.includes('中')) return 'CHINESE';
+        if (value.includes('일')) return 'JAPANESE';
+        if (value.includes('양') || value.toLowerCase().includes('western')) return 'WESTERN';
+        if (value.includes('카페') || value.includes('디저트') || value.toLowerCase().includes('cafe')) return 'CAFE_DESSERT';
+        if (value.includes('주점') || value.includes('술') || value.toLowerCase().includes('bar')) return 'BAR';
+        if (value.includes('기타') || value.includes('其他')) return 'ETC';
+        return 'KOREAN';
+    };
+
     const handleSubmit = async () => {
         // 한글 카테고리 → 영문 Enum 매핑 함수
         const mapCategoryToEnum = (koreanCategory) => {
@@ -126,6 +142,11 @@ const SignupForm = ({ onSwitch }) => {
             return mapping[koreanCategory] || 'KOREAN'; // 기본값: KOREAN
         };
 
+        const categoryEnum = toCategoryEnum(formData.category, formData.customCategory);
+        const customCategory = String(formData.customCategory || '').trim();
+        const shopName = String(formData.storeName || '').trim() || `${String(formData.name || '').trim() || 'PULSE'} 가게`;
+        const shopAddress = `${formData.address || ''} ${formData.detailAddress || ''}`.trim() || '주소 미입력';
+
         // Prepare payload for Spring Boot API
         const payload = {
             email: formData.email,
@@ -136,11 +157,22 @@ const SignupForm = ({ onSwitch }) => {
             isPrivacyAgreed: formData.agreed,
             shopInfo: {
                 name: formData.storeName,
-                address: `${formData.address} ${formData.detailAddress}`,
+                address: shopAddress,
                 category: formData.category === '기타' ? 'ETC' : mapCategoryToEnum(formData.category),
                 customCategory: formData.category === '기타' ? formData.customCategory || null : null
             }
         };
+
+        payload.shopInfo.name = shopName;
+        payload.shopInfo.address = shopAddress;
+        payload.shopInfo.category = categoryEnum;
+        payload.shopInfo.customCategory = categoryEnum === 'ETC' ? customCategory || null : null;
+
+        localStorage.setItem('pulseStoreProfileDraft', JSON.stringify({
+            storeName: shopName,
+            category: formData.category === '기타' ? formData.customCategory || '기타' : formData.category,
+            address: `${formData.address} ${formData.detailAddress}`.trim(),
+        }));
 
         // Start Loading Process with real API call
         setIsLoading(true);

@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = import.meta.env.VITE_FASTAPI_BASE_URL || 'http://127.0.0.1:8000/api';
 const AUTH_TOKEN_KEY = 'accessToken';
 
 const MOCK_RESPONSE = {
@@ -99,7 +99,7 @@ export async function fetchPromotionPromptRecommendation({
         formData.append('image', imageFile);
     }
 
-    const response = await fetch(`${API_BASE_URL}/api/info/prompt-recommendation`, {
+    const response = await fetch(`${API_BASE_URL}/info/prompt-recommendation`, {
         method: 'POST',
         headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -116,7 +116,7 @@ export async function fetchPromotionPromptRecommendation({
 }
 
 export async function generatePromotionVideo({ target, concept, mode, style, imageFile, onProgress }) {
-    const notify = onProgress || (() => {});
+    const notify = onProgress || (() => { });
 
     if (!API_BASE_URL) {
         console.warn('[promotionApi] VITE_API_BASE_URL is missing. Returning mock response.');
@@ -136,7 +136,7 @@ export async function generatePromotionVideo({ target, concept, mode, style, ima
 
     notify(5, '요청을 전송하고 있어요..');
 
-    const startRes = await fetch(`${API_BASE_URL}/api/info/generate`, {
+    const startRes = await fetch(`${API_BASE_URL}/info/generate`, {
         method: 'POST',
         headers: {
             ...(token ? { Authorization: `Bearer ${token}` } : {})
@@ -165,7 +165,7 @@ export async function generatePromotionVideo({ target, concept, mode, style, ima
 }
 
 async function _pollStatus(taskId, token, onProgress) {
-    const statusUrl = `${API_BASE_URL}/api/info/status/${taskId}`;
+    const statusUrl = `${API_BASE_URL}/info/status/${taskId}`;
 
     while (true) {
         await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));

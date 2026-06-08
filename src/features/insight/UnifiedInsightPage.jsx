@@ -126,6 +126,79 @@ const MOCK_ANALYSIS_DATA = {
     ]
 };
 
+const DEFAULT_JOURNEY = {
+    explore: {
+        label: '탐색',
+        action: '리뷰와 매장 정보를 확인합니다.',
+        thought: '방문 전에 필요한 정보를 찾고 있습니다.',
+        type: 'neutral',
+        touchpoint: '검색/지도',
+        painPoint: null,
+        opportunity: '대표 메뉴와 위치 정보를 명확히 보여주세요.'
+    },
+    visit: {
+        label: '방문',
+        action: '매장을 방문하고 입장합니다.',
+        thought: '기대했던 경험과 실제 매장을 비교합니다.',
+        type: 'neutral',
+        touchpoint: '매장 입구',
+        painPoint: null,
+        opportunity: '첫인상을 좋게 만드는 안내가 필요합니다.'
+    },
+    eat: {
+        label: '식사',
+        action: '메뉴를 주문하고 식사합니다.',
+        thought: '맛, 양, 가격을 함께 판단합니다.',
+        type: 'neutral',
+        touchpoint: '테이블/메뉴',
+        painPoint: null,
+        opportunity: '만족 포인트를 리뷰로 남기기 쉽게 만들어주세요.'
+    },
+    share: {
+        label: '공유',
+        action: '경험을 지인이나 SNS에 공유합니다.',
+        thought: '다시 방문하거나 추천할지 결정합니다.',
+        type: 'neutral',
+        touchpoint: '리뷰/SNS',
+        painPoint: null,
+        opportunity: '공유할 만한 사진 포인트와 혜택을 제공하세요.'
+    }
+};
+
+const normalizePersona = (persona, index) => {
+    const fallback = MOCK_ANALYSIS_DATA.personas[index % MOCK_ANALYSIS_DATA.personas.length];
+    const journey = persona?.journey || {};
+
+    return {
+        id: persona?.id ?? index + 1,
+        nickname: persona?.nickname || fallback.nickname || `대표 고객 ${index + 1}`,
+        summary: persona?.summary || fallback.summary || '리뷰 기반 대표 고객 그룹입니다.',
+        img: persona?.img || fallback.img || `https://api.dicebear.com/7.x/adventurer/svg?seed=persona-${index + 1}`,
+        tags: Array.isArray(persona?.tags) && persona.tags.length ? persona.tags : (fallback.tags || ['고객분석']),
+        overall_comment: persona?.overall_comment || fallback.overall_comment || '리뷰 기반 분석 총평을 준비 중입니다.',
+        action_recommendation: persona?.action_recommendation || fallback.action_recommendation || '대표 메뉴와 방문 이유를 더 명확히 노출해보세요.',
+        journey: {
+            explore: { ...DEFAULT_JOURNEY.explore, ...(journey.explore || {}) },
+            visit: { ...DEFAULT_JOURNEY.visit, ...(journey.visit || {}) },
+            eat: { ...DEFAULT_JOURNEY.eat, ...(journey.eat || {}) },
+            share: { ...DEFAULT_JOURNEY.share, ...(journey.share || {}) },
+        }
+    };
+};
+
+const normalizeAnalysisData = (data) => {
+    const sourcePersonas = Array.isArray(data?.personas) && data.personas.length
+        ? data.personas
+        : MOCK_ANALYSIS_DATA.personas;
+    const personas = sourcePersonas.slice(0, 3).map(normalizePersona);
+
+    return {
+        ...MOCK_ANALYSIS_DATA,
+        ...data,
+        personas,
+    };
+};
+
 export default function UnifiedInsightPage({ onNavigate }) {
     // API에서 가져온 분석 데이터
     const [analysisData, setAnalysisData] = useState(null);
@@ -176,8 +249,9 @@ export default function UnifiedInsightPage({ onNavigate }) {
                 const data = await response.json();
                 console.log('📊 분석 데이터 로드 완료:', data);
 
-                setAnalysisData(data);
-                setPersonas(data.personas || []);
+                const normalizedData = normalizeAnalysisData(data);
+                setAnalysisData(normalizedData);
+                setPersonas(normalizedData.personas);
             } catch (err) {
                 if (USE_MOCK_ANALYSIS) {
                     console.warn('[InsightPage] API 연결 실패 → 목업 데이터 사용:', err.message);

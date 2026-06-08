@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Camera, X, Instagram, Youtube, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { signupInfluencer } from '../api/authApi';
 
 const CATEGORIES = ["맛집", "카페", "뷰티", "라이프스타일", "패션", "테크", "기타"];
 const LOCATIONS = ["전국", "서울 강남구", "서울 성동구", "서울 서초구", "서울 마포구", "서울 송파구", "경기", "인천", "기타 지역"];
 
 export default function InfluencerSignupForm({ onSwitch }) {
+    const navigate = useNavigate();
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         email: '', password: '', name: '',
@@ -52,11 +55,15 @@ export default function InfluencerSignupForm({ onSwitch }) {
         setStep(Math.max(step - 1, 1));
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // MVP: Just alert and redirect
-        alert(`인플루언서 가입이 성공적으로 완료되었습니다, ${formData.name}님!`);
-        onSwitch();
+        try {
+            await signupInfluencer(formData);
+            navigate('/influencer/dashboard');
+        } catch (error) {
+            console.error('Influencer Signup Error:', error);
+            alert(error.message || '인플루언서 가입 처리 중 오류가 발생했습니다.');
+        }
     };
 
     const handleTagKeyDown = (e) => {

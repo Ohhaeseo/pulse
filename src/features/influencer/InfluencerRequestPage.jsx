@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Send, Info } from 'lucide-react';
 import { INFLUENCER_DATA } from '../../data/mockInfluencers';
+import { createInfluencerProposal } from './influencerApi';
 
 /**
  * InfluencerRequestPage (v2.0)
@@ -11,7 +12,15 @@ import { INFLUENCER_DATA } from '../../data/mockInfluencers';
 export default function InfluencerRequestPage() {
     const { id } = useParams();
     const navigate = useNavigate();
-    const influencer = INFLUENCER_DATA.find(inf => inf.id === id);
+    const cachedInfluencer = (() => {
+        try {
+            const cached = JSON.parse(localStorage.getItem('selectedInfluencerForProposal') || 'null');
+            return String(cached?.id) === String(id) ? cached : null;
+        } catch {
+            return null;
+        }
+    })();
+    const influencer = INFLUENCER_DATA.find(inf => inf.id === id) || cachedInfluencer;
 
     const [formData, setFormData] = useState({
         type: '제품 협찬',
@@ -45,6 +54,30 @@ export default function InfluencerRequestPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
+        try {
+            if (!influencer?.backendProfileId) {
+                throw new Error('실제 DB 인플루언서 프로필 ID를 찾을 수 없습니다. 매칭 페이지에서 다시 선택해주세요.');
+            }
+
+            await createInfluencerProposal({
+                influencerProfileId: influencer.backendProfileId,
+                campaignType: formData.type,
+                budget: Number(formData.budget || 0),
+                provideFood: formData.provideFood,
+                desiredDate: formData.date || null,
+                contact: formData.contact,
+                message: formData.message,
+            });
+
+            alert(`${influencer.name}님에게 제안을 보냈습니다.`);
+            navigate('/influencer-matching');
+            return;
+        } catch (error) {
+            console.error('Proposal submit failed:', error);
+            alert(error.message || '제안 전송에 실패했습니다.');
+            setIsSubmitting(false);
+            return;
+        }
         await new Promise(resolve => setTimeout(resolve, 1500));
 
         // 백엔드 이메일 발송 API 연동 시뮬레이션

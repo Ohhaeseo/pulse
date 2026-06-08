@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Zap } from 'lucide-react';
-import { login } from '../api/authApi';
+import { login, logout } from '../api/authApi';
 import '../AuthPage.css';
 
 const DEV_MODE = import.meta.env.DEV;
@@ -18,9 +18,11 @@ const LoginForm = ({ onSwitch }) => {
         e.preventDefault();
 
         try {
-            await login(formData);
-            navigate('/dashboard');
+            const data = await login(formData);
+            const role = data?.user?.role;
+            navigate(role === 'INFLUENCER' ? '/influencer/dashboard' : '/dashboard');
         } catch (error) {
+            logout();
             console.error('Login Error:', error);
             alert(error.message || '로그인 처리 중 오류가 발생했습니다.');
         }

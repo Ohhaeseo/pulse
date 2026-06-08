@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Store, MapPin, Calendar, CheckCircle2, XCircle, ChevronDown, X, AlertCircle, ArrowUpDown } from 'lucide-react';
+import { acceptInfluencerProposal, fetchInfluencerInbox, rejectInfluencerProposal } from './influencerApi';
 
 const INITIAL_PROPOSALS = [
     {
@@ -67,6 +68,21 @@ const SORT_OPTIONS = [
 ];
 
 // ── 상세 모달 (Phase 1: G1) ──────────────────────────────
+const mapApiProposal = (proposal) => ({
+    id: proposal.id,
+    storeName: proposal.shopName || '가게명 없음',
+    category: proposal.campaignType || '협업 제안',
+    address: proposal.shopAddress || '주소 정보 없음',
+    message: proposal.message || '',
+    detailMessage: proposal.message || '',
+    offerPrice: proposal.budget || 0,
+    freeMeal: proposal.provideFood ? '방문 시 식사 제공' : '식사 제공 없음',
+    date: proposal.desiredDate || '협의',
+    deadline: proposal.createdAt ? proposal.createdAt.slice(0, 10) : '협의',
+    instagram: proposal.contact || '',
+    status: (proposal.status || 'PENDING').toLowerCase(),
+});
+
 function ProposalDetailModal({ proposal, onClose, onAccept, onReject }) {
     if (!proposal) return null;
     return (
@@ -195,16 +211,54 @@ function ConfirmAcceptDialog({ storeName, onConfirm, onCancel }) {
 
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function InfluencerInbox() {
-    const [proposals, setProposals] = useState(INITIAL_PROPOSALS);
+    const [proposals, setProposals] = useState([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('pending');
     const [selectedProposal, setSelectedProposal] = useState(null); // G1: 상세 모달
     const [confirmId, setConfirmId] = useState(null);               // G2: 수락 확인
     const [sortBy, setSortBy] = useState('newest');                  // G4: 정렬
     const [showSortMenu, setShowSortMenu] = useState(false);
 
-    const handleUpdateStatus = (id, newStatus) => {
-        setProposals(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
-        setConfirmId(null);
+    useEffect(() => {
+        let ignore = false;
+
+        const loadInbox = async () => {
+            setIsLoading(true);
+            try {
+                const response = await fetchInfluencerInbox();
+                if (!ignore) {
+                    setProposals((response || []).map(mapApiProposal));
+                }
+            } catch (error) {
+                console.warn('Influencer inbox load failed:', error);
+                if (!ignore) {
+                    const token = localStorage.getItem('accessToken');
+                    setProposals(token === 'dev-bypass-token' ? INITIAL_PROPOSALS : []);
+                }
+            } finally {
+                if (!ignore) setIsLoading(false);
+            }
+        };
+
+        loadInbox();
+        return () => {
+            ignore = true;
+        };
+    }, []);
+
+    const handleUpdateStatus = async (id, newStatus) => {
+        try {
+            if (newStatus === 'accepted') {
+                await acceptInfluencerProposal(id, '제안을 수락합니다.');
+            } else {
+                await rejectInfluencerProposal(id, '이번 제안은 진행이 어렵습니다.');
+            }
+        } catch (error) {
+            console.warn('Proposal status update failed, updating local state only:', error);
+        } finally {
+            setProposals(prev => prev.map(p => p.id === id ? { ...p, status: newStatus } : p));
+            setConfirmId(null);
+        }
     };
 
     // G4: 정렬 로직

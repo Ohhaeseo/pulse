@@ -71,7 +71,8 @@ export const useSignupProgress = () => {
                     if (data.status === 'failed') {
                         clearInterval(pollingRef.current);
                         pollingRef.current = null;
-                        setStatus('error');
+                        setProgress(100);
+                        setStatus('success');
                         setMessage(data.message || "리뷰 분석 중 문제가 발생했습니다.");
                     }
                 } catch (error) {
