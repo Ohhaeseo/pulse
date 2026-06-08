@@ -6,7 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-$rootPath = "C:\PULSE"
+$rootPath = "C:\programworks\PULSE"
 $startedProcesses = @()
 
 function Invoke-Step {
