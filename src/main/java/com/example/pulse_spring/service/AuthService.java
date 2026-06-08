@@ -1,13 +1,20 @@
 package com.example.pulse_spring.service;
 
 import com.example.pulse_spring.config.JwtTokenProvider;
-import com.example.pulse_spring.domain.*;
+import com.example.pulse_spring.domain.Category;
+import com.example.pulse_spring.domain.InfluencerProfile;
+import com.example.pulse_spring.domain.Shop;
+import com.example.pulse_spring.domain.User;
+import com.example.pulse_spring.domain.UserRole;
+import com.example.pulse_spring.dto.CurrentUserProfileResponse;
+import com.example.pulse_spring.dto.InfluencerProfileResponse;
+import com.example.pulse_spring.dto.InfluencerSignupRequest;
 import com.example.pulse_spring.dto.LoginRequest;
 import com.example.pulse_spring.dto.LoginResponse;
-import com.example.pulse_spring.dto.CurrentUserProfileResponse;
 import com.example.pulse_spring.dto.SignupRequest;
 import com.example.pulse_spring.dto.SignupResponse;
 import com.example.pulse_spring.dto.UserStoreResponse;
+import com.example.pulse_spring.repository.InfluencerProfileRepository;
 import com.example.pulse_spring.repository.ShopRepository;
 import com.example.pulse_spring.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
@@ -15,100 +22,183 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-/*
- * [AuthService]
- * 
- * 이 클래스는 회원 인증/인가와 관련된 핵심 서비스입니다.
- * 
- * 주요 역할:
- * - 회원가입(signup): 사용자의 이메일, 비밀번호 등 정보를 받아 유저와 상점 정보를 저장하고,
- *   가입시 토큰(JWT)과 완료 메시지를 담은 SignupResponse를 반환합니다.
- *   만약 가게 업종이 기타(ETC)일 경우 상세 업종 정보도 체크합니다.
- * - 로그인(login): 이메일과 비밀번호로 로그인 시도를 처리하고, 로그인 성공 시 토큰을 담은 LoginResponse를 반환합니다.
- * - FastAPI 요청: 회원가입 시 등록한 상점 정보로 외부 FastAPI에 비동기 데이터 분석 요청을 보냅니다.
- * 
- * 팀원 참고:
- * - UserRepository, ShopRepository를 이용해 DB와 연동하며, 
- *   Spring Security의 PasswordEncoder로 비밀번호 암호화, JwtTokenProvider로 토큰을 관리합니다.
- * - 회원 인증 도메인에서 공통적으로 사용될 서비스이므로, 추후 인증/인가 확장이나 리팩터링 시에도 참고하시기 바랍니다.
- * - Exception 메시지 및 유효성 검증 로직은 프론트와 협의하여 필요에 따라 확장 가능합니다.
- */
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class AuthService {
     private final UserRepository userRepository;
     private final ShopRepository shopRepository;
+    private final InfluencerProfileRepository influencerProfileRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
     private final FastApiClient fastApiClient;
     private final KakaoLocalClient kakaoLocalClient;
+    private final SocialStatsService socialStatsService;
 
     @Transactional
     public SignupResponse signup(SignupRequest request) {
-        // 1. 비밀번호와 비밀번호 확인이 같은지 검증
-        if (!request.getPassword().equals(request.getPasswordConfirm())) {
-            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
-        }
-        // 2. 이메일 중복 체크
-        if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalArgumentException("이미 가입된 이메일입니다.");
+        validatePassword(request.getPassword(), request.getPasswordConfirm());
+
+        Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent()) {
+            return reuseExistingOwnerSignup(existingUser.get(), request);
         }
 
-        // 3. User 엔티티 생성 및 저장
         User user = User.builder()
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .name(request.getName())
                 .phone(request.getPhone())
                 .isPrivacyAgreed(request.isPrivacyAgreed())
+                .role(UserRole.OWNER)
                 .build();
         userRepository.save(user);
 
-        // 4. Shop 엔티티 생성 전 ETC 업종일 때 customCategory 필요 여부 검증
-        SignupRequest.ShopInfoDto info = request.getShopInfo();
-        if (info.getCategory() == Category.ETC
-                && (info.getCustomCategory() == null || info.getCustomCategory().isBlank())) {
-            throw new IllegalArgumentException("기타 업종 선택 시 상세 업종을 입력해야 합니다.");
+        Shop shop = createShop(user, request.getShopInfo());
+        String analysisTaskId = requestAnalysis(shop);
+
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+        return SignupResponse.of("가입이 완료되었습니다.", token, analysisTaskId, user);
+    }
+
+    private SignupResponse reuseExistingOwnerSignup(User user, SignupRequest request) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("이미 가입된 이메일입니다. 기존 비밀번호로 로그인해주세요.");
         }
+        if (user.getRole() != UserRole.OWNER) {
+            throw new IllegalArgumentException("이미 인플루언서 계정으로 가입된 이메일입니다.");
+        }
+
+        Shop shop = shopRepository.findByUserEmail(user.getEmail())
+                .orElseGet(() -> createShop(user, request.getShopInfo()));
+        String analysisTaskId = requestAnalysis(shop);
+
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+        return SignupResponse.of("이미 가입된 계정으로 로그인했습니다.", token, analysisTaskId, user);
+    }
+
+    private Shop createShop(User user, SignupRequest.ShopInfoDto info) {
+        SignupRequest.ShopInfoDto safeInfo = info == null ? new SignupRequest.ShopInfoDto() : info;
+        String shopName = blankToDefault(safeInfo.getName(), user.getName() + "의 가게");
+        String shopAddress = blankToDefault(safeInfo.getAddress(), "주소 미입력");
+        Category category = parseCategory(safeInfo.getCategory());
+        String customCategory = category == Category.ETC ? blankToDefault(safeInfo.getCustomCategory(), "기타") : null;
 
         Shop shop = Shop.builder()
                 .user(user)
-                .name(info.getName())
-                .address(info.getAddress())
-                .category(info.getCategory())
-                .customCategory(info.getCategory() == Category.ETC ? info.getCustomCategory() : null)
+                .name(shopName)
+                .address(shopAddress)
+                .category(category)
+                .customCategory(customCategory)
                 .status(Shop.AnalysisStatus.PENDING)
                 .build();
+        applyCoordinates(shop);
+        return shopRepository.save(shop);
+    }
+
+    private void applyCoordinates(Shop shop) {
         kakaoLocalClient.geocodeAddress(shop.getAddress())
                 .ifPresent(coordinates -> shop.updateCoordinates(
                         coordinates.getLatitude(),
                         coordinates.getLongitude()
                 ));
-        shopRepository.save(shop);
+    }
 
-        // 5. FastAPI로 상점 데이터 분석 비동기 요청 보내기
-        String keyword = (shop.getCategory() == Category.ETC) ? shop.getCustomCategory()
+    private String requestAnalysis(Shop shop) {
+        String keyword = shop.getCategory() == Category.ETC
+                ? shop.getCustomCategory()
                 : shop.getCategory().getDescription();
-        String analysisTaskId = fastApiClient.sendAnalysisRequest(shop.getId(), shop.getName(), shop.getAddress(), keyword);
+        return fastApiClient.sendAnalysisRequest(
+                shop.getId(),
+                shop.getName(),
+                shop.getAddress(),
+                keyword
+        );
+    }
 
-        // 6. 가입 완료 후 JWT 토큰 생성 및 반환
-        String token = jwtTokenProvider.createToken(user.getEmail());
-        return SignupResponse.of("가입이 완료되었습니다.", token, analysisTaskId);
+    @Transactional
+    public SignupResponse signupInfluencer(InfluencerSignupRequest request) {
+        validatePassword(request.getPassword(), request.getPasswordConfirm());
+
+        Optional<User> existingUser = userRepository.findByEmail(request.getEmail());
+        if (existingUser.isPresent()) {
+            return reuseExistingInfluencerSignup(existingUser.get(), request);
+        }
+
+        User user = User.builder()
+                .email(request.getEmail())
+                .password(passwordEncoder.encode(request.getPassword()))
+                .name(request.getName())
+                .phone(request.getPhone())
+                .isPrivacyAgreed(request.isPrivacyAgreed())
+                .role(UserRole.INFLUENCER)
+                .build();
+        userRepository.save(user);
+
+        createInfluencerProfile(user, request);
+
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+        return SignupResponse.of("인플루언서 가입이 완료되었습니다.", token, null, user);
+    }
+
+    private SignupResponse reuseExistingInfluencerSignup(User user, InfluencerSignupRequest request) {
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new IllegalArgumentException("이미 가입된 이메일입니다. 기존 비밀번호로 로그인해주세요.");
+        }
+        if (user.getRole() != UserRole.INFLUENCER) {
+            throw new IllegalArgumentException("이미 사장님 계정으로 가입된 이메일입니다.");
+        }
+
+        influencerProfileRepository.findByUserEmail(user.getEmail())
+                .orElseGet(() -> createInfluencerProfile(user, request));
+
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+        return SignupResponse.of("이미 가입된 인플루언서 계정으로 로그인했습니다.", token, null, user);
+    }
+
+    private InfluencerProfile createInfluencerProfile(User user, InfluencerSignupRequest request) {
+        InfluencerSignupRequest.ProfileDto input = Optional.ofNullable(request.getProfile())
+                .orElseGet(InfluencerSignupRequest.ProfileDto::new);
+        SocialStatsService.SocialStats socialStats = socialStatsService.fetch(
+                input.getInstagramUrl(),
+                input.getYoutubeUrl()
+        );
+
+        InfluencerProfile profile = InfluencerProfile.builder()
+                .user(user)
+                .displayName(blankToDefault(input.getDisplayName(), user.getName()))
+                .bio(input.getBio())
+                .location(input.getLocation())
+                .profileImageUrl(input.getProfileImageUrl())
+                .instagramUrl(input.getInstagramUrl())
+                .youtubeUrl(input.getYoutubeUrl())
+                .instagramFollowers(defaultIntOr(input.getInstagramFollowers(), socialStats.instagramFollowers()))
+                .youtubeSubscribers(defaultIntOr(input.getYoutubeSubscribers(), socialStats.youtubeSubscribers()))
+                .avgViews(defaultInt(input.getAvgViews()))
+                .engagementRate(BigDecimal.valueOf(input.getEngagementRate() == null ? 0.0 : input.getEngagementRate()))
+                .minBudget(input.getMinBudget() == null ? 0 : input.getMinBudget())
+                .verified(false)
+                .niches(defaultList(input.getNiches()))
+                .keywords(defaultList(input.getKeywords()))
+                .activityAreas(defaultList(input.getActivityAreas()))
+                .audienceKeywords(defaultList(input.getAudienceKeywords()))
+                .build();
+        return influencerProfileRepository.save(profile);
     }
 
     public LoginResponse login(LoginRequest request) {
-        // 1. 이메일로 유저 조회 (없으면 예외)
         User user = userRepository.findByEmail(request.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 이메일입니다."));
 
-        // 2. 비밀번호 검증
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
         }
-        // 3. 로그인 성공 시 토큰 생성 및 반환
-        String token = jwtTokenProvider.createToken(user.getEmail());
-        return LoginResponse.of(token);
+
+        String token = jwtTokenProvider.createToken(user.getEmail(), user.getRole());
+        return LoginResponse.of(token, user);
     }
 
     @Transactional(readOnly = true)
@@ -116,28 +206,36 @@ public class AuthService {
         User user = userRepository.findByEmail(userEmail)
                 .orElseThrow(() -> new IllegalArgumentException("가입되지 않은 사용자입니다."));
 
-        Shop shop = shopRepository.findByUserEmail(userEmail)
-                .orElseThrow(() -> new IllegalStateException("사장님 가게 정보를 찾을 수 없습니다."));
+        if (user.getRole() == UserRole.INFLUENCER) {
+            InfluencerProfile profile = influencerProfileRepository.findByUserEmail(userEmail)
+                    .orElse(null);
+            return CurrentUserProfileResponse.builder()
+                    .email(user.getEmail())
+                    .name(user.getName())
+                    .role(user.getRole())
+                    .influencerProfile(profile == null ? null : InfluencerProfileResponse.from(profile))
+                    .build();
+        }
 
+        Shop shop = shopRepository.findByUserEmail(userEmail).orElse(null);
         return CurrentUserProfileResponse.builder()
                 .email(user.getEmail())
+                .name(user.getName())
+                .role(user.getRole())
                 .ownerName(user.getName())
-                .shopName(shop.getName())
-                .shopAddress(shop.getAddress())
+                .shopName(shop == null ? null : shop.getName())
+                .shopAddress(shop == null ? null : shop.getAddress())
+                .shopCategory(shop == null ? null : shop.getCategory().name())
                 .build();
     }
 
     @Transactional
     public UserStoreResponse getCurrentStore(String userEmail) {
         Shop shop = shopRepository.findByUserEmail(userEmail)
-                .orElseThrow(() -> new IllegalStateException("?ъ옣??媛寃??뺣낫瑜?李얠쓣 ???놁뒿?덈떎."));
+                .orElseThrow(() -> new IllegalStateException("등록된 매장 정보가 없습니다."));
 
         if (shop.getLatitude() == null || shop.getLongitude() == null) {
-            kakaoLocalClient.geocodeAddress(shop.getAddress())
-                    .ifPresent(coordinates -> shop.updateCoordinates(
-                            coordinates.getLatitude(),
-                            coordinates.getLongitude()
-                    ));
+            applyCoordinates(shop);
         }
 
         return UserStoreResponse.builder()
@@ -150,5 +248,52 @@ public class AuthService {
                 .lat(shop.getLatitude())
                 .lng(shop.getLongitude())
                 .build();
+    }
+
+    private void validatePassword(String password, String passwordConfirm) {
+        if (!password.equals(passwordConfirm)) {
+            throw new IllegalArgumentException("비밀번호가 일치하지 않습니다.");
+        }
+    }
+
+    private Category parseCategory(String value) {
+        if (value == null || value.isBlank()) {
+            return Category.KOREAN;
+        }
+
+        String normalized = value.trim();
+        String upper = normalized.toUpperCase();
+
+        try {
+            return Category.valueOf(upper);
+        } catch (IllegalArgumentException ignored) {
+            // Accept labels from the frontend as well as enum names.
+        }
+
+        if (normalized.contains("한식") || upper.contains("KOREAN")) return Category.KOREAN;
+        if (normalized.contains("일식") || upper.contains("JAPANESE")) return Category.JAPANESE;
+        if (normalized.contains("중식") || upper.contains("CHINESE")) return Category.CHINESE;
+        if (normalized.contains("양식") || upper.contains("WESTERN")) return Category.WESTERN;
+        if (normalized.contains("카페") || normalized.contains("디저트") || upper.contains("CAFE")) return Category.CAFE_DESSERT;
+        if (normalized.contains("주점") || normalized.contains("술") || upper.contains("BAR")) return Category.BAR;
+        if (normalized.contains("기타") || upper.contains("ETC")) return Category.ETC;
+
+        return Category.KOREAN;
+    }
+
+    private String blankToDefault(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value;
+    }
+
+    private int defaultInt(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private int defaultIntOr(Integer value, int fallback) {
+        return value == null || value == 0 ? fallback : value;
+    }
+
+    private List<String> defaultList(List<String> value) {
+        return value == null ? List.of() : value;
     }
 }

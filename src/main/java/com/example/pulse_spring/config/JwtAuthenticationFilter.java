@@ -1,5 +1,6 @@
 package com.example.pulse_spring.config;
 
+import com.example.pulse_spring.domain.UserRole;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,10 +31,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = authorization.substring(7);
             if (jwtTokenProvider.validateToken(token)) {
                 String email = jwtTokenProvider.getEmail(token);
+                UserRole role = jwtTokenProvider.getRole(token);
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         email,
                         null,
-                        List.of(new SimpleGrantedAuthority("ROLE_USER"))
+                        List.of(new SimpleGrantedAuthority("ROLE_" + role.name()))
                 );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(authentication);

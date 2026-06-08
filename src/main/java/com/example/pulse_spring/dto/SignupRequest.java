@@ -1,6 +1,5 @@
 package com.example.pulse_spring.dto;
 
-import com.example.pulse_spring.domain.Category;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -42,12 +41,9 @@ public class SignupRequest {
     @Getter
     @Setter
     public static class ShopInfoDto {
-        @NotBlank
         private String name;
-        @NotBlank
         private String address;
-        @NotNull
-        private Category category;
+        private String category;
         private String customCategory;
     }
 }
