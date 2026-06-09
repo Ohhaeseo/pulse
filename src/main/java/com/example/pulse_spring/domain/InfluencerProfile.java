@@ -9,6 +9,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.Lob;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import lombok.AccessLevel;
@@ -44,7 +45,12 @@ public class InfluencerProfile {
     private String bio;
 
     private String location;
+
+    // 프로필 사진을 Base64 data URL로 저장하므로 길이가 매우 길다.
+    // 기본 VARCHAR(255)로는 부족해 @Lob(텍스트 대용량)으로 매핑한다. (MySQL: LONGTEXT, H2: CLOB)
+    @Lob
     private String profileImageUrl;
+
     private String instagramUrl;
     private String youtubeUrl;
     private Integer instagramFollowers;
