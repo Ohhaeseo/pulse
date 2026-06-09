@@ -9,6 +9,7 @@ const EMPTY_PROFILE = {
     joinDate: '',
     instagram: '',
     youtube: '',
+    profileImage: '',
     tags: [],
     instagramFollowers: 0,
     youtubeSubscribers: 0,
@@ -26,12 +27,24 @@ const formatNumber = (value) => {
     return number.toLocaleString();
 };
 
+// niches + keywords를 합치되 #프리픽스를 정규화하고 대소문자 무시로 중복을 제거한다.
+const buildUniqueTags = (...lists) => {
+    const seen = new Set();
+    const result = [];
+    lists.flat().forEach((raw) => {
+        const trimmed = String(raw || '').trim();
+        if (!trimmed) return;
+        const tag = trimmed.startsWith('#') ? trimmed : `#${trimmed}`;
+        const key = tag.toLowerCase();
+        if (seen.has(key)) return;
+        seen.add(key);
+        result.push(tag);
+    });
+    return result;
+};
+
 const mapProfile = (profile) => {
     const influencer = profile?.influencerProfile || {};
-    const tags = [
-        ...(influencer.niches || []),
-        ...(influencer.keywords || []),
-    ].filter(Boolean);
 
     return {
         ...EMPTY_PROFILE,
@@ -41,7 +54,8 @@ const mapProfile = (profile) => {
         joinDate: influencer.createdAt ? influencer.createdAt.slice(0, 10) : '',
         instagram: influencer.instagramUrl || '',
         youtube: influencer.youtubeUrl || '',
-        tags: tags.map(tag => tag.startsWith('#') ? tag : `#${tag}`),
+        profileImage: influencer.profileImageUrl || '',
+        tags: buildUniqueTags(influencer.niches, influencer.keywords),
         instagramFollowers: influencer.instagramFollowers || 0,
         youtubeSubscribers: influencer.youtubeSubscribers || 0,
         avgViews: influencer.avgViews || 0,
@@ -97,8 +111,12 @@ export default function InfluencerProfile() {
         <div className="flex-1 flex flex-col gap-5 mt-3 overflow-y-auto custom-scrollbar pb-6">
             <div className="bg-white rounded-[24px] border border-[#E5E8EB] p-8 flex items-start gap-6">
                 <div className="relative shrink-0">
-                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#002B7A] to-[#4A7FD4] flex items-center justify-center shadow-md">
-                        <User size={36} className="text-white" />
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#002B7A] to-[#4A7FD4] flex items-center justify-center shadow-md overflow-hidden">
+                        {data.profileImage ? (
+                            <img src={data.profileImage} alt={data.name || '프로필 사진'} className="w-full h-full object-cover" />
+                        ) : (
+                            <User size={36} className="text-white" />
+                        )}
                     </div>
                     {isEditMode && (
                         <button className="absolute -bottom-1 -right-1 w-7 h-7 bg-white border border-[#E5E8EB] rounded-full flex items-center justify-center shadow-sm hover:bg-[#F2F4F6] transition-colors">

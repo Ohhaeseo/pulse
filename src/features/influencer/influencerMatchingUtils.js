@@ -29,6 +29,13 @@ export const normalizeKeyword = (value = '') => String(value)
     .replace(/\s/g, '')
     .toLowerCase();
 
+// 매칭에서 의미가 약한 추상·마케팅 단어 (키워드 점수 계산에서 제외)
+const KEYWORD_STOPWORDS = new Set([
+    '재방문', '가성비', '친절', '회식', '직장인점심', '단골', '분위기', '서비스',
+    '추천', '인기', '매장', '가게', '방문', '후기', '리뷰',
+    'food', 'cafe', 'dessert', 'western', 'bar',
+].map((word) => normalizeKeyword(word)));
+
 const unique = (values) => Array.from(new Set(values.filter(Boolean)));
 
 const asArray = (value) => {
@@ -114,9 +121,9 @@ export function buildStoreInsightFromAnalysisData(analysisData) {
         category: normalizeCategory(analysisData.category || localProfile.category),
         keywords: unique([
             localProfile.category,
-            ...localProfile.keywords,
-            ...reviewTopics,
             ...personaKeywords,
+            ...reviewTopics,
+            ...localProfile.keywords,
         ]),
         personas,
         reviewTopics: unique(reviewTopics),
@@ -124,11 +131,18 @@ export function buildStoreInsightFromAnalysisData(analysisData) {
     };
 }
 
+// 추상어를 걸러낸다. 단, 전부 걸러지면 원본을 유지해 0점만 나오는 상황을 막는다.
+const dropStopwords = (tokens) => {
+    const filtered = tokens.filter((token) => !KEYWORD_STOPWORDS.has(token));
+    return filtered.length ? filtered : tokens;
+};
+
 export function keywordSimilarity(storeKeywords, influencerKeywords) {
-    const store = unique(asArray(storeKeywords).map(normalizeKeyword));
-    const influencer = unique(asArray(influencerKeywords).map(normalizeKeyword));
+    const store = dropStopwords(unique(asArray(storeKeywords).map(normalizeKeyword)));
+    const influencer = dropStopwords(unique(asArray(influencerKeywords).map(normalizeKeyword)));
     if (store.length === 0 || influencer.length === 0) return { ratio: 0, matched: [] };
 
+    // 부분 일치 허용: 한쪽이 다른 쪽을 포함하면 매칭으로 인정 (예: '디저트' ↔ '감성디저트')
     const matched = store.filter((storeKeyword) =>
         influencer.some((influencerKeyword) =>
             influencerKeyword.includes(storeKeyword) || storeKeyword.includes(influencerKeyword)

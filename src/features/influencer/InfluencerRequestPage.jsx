@@ -4,6 +4,9 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Sparkles, Send, Info } from 'lucide-react';
 import { INFLUENCER_DATA } from '../../data/mockInfluencers';
 import { createInfluencerProposal } from './influencerApi';
+import { getLocalStoreProfile } from './influencerMatchingUtils';
+
+const FASTAPI_URL = import.meta.env.VITE_FASTAPI_BASE_URL || 'http://127.0.0.1:8000/api';
 
 /**
  * InfluencerRequestPage (v2.0)
@@ -20,7 +23,8 @@ export default function InfluencerRequestPage() {
             return null;
         }
     })();
-    const influencer = INFLUENCER_DATA.find(inf => inf.id === id) || cachedInfluencer;
+    // 매칭 화면에서 선택한 실제(백엔드) 인플루언서를 우선 사용하고, 없을 때만 목 데이터로 폴백한다.
+    const influencer = cachedInfluencer || INFLUENCER_DATA.find(inf => inf.id === id);
 
     const [formData, setFormData] = useState({
         type: '제품 협찬',
@@ -35,15 +39,57 @@ export default function InfluencerRequestPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     // AI 제안서 작성 핸들러
+    // 과거에는 인플루언서의 활동지/분야를 '우리 매장' 정보로 잘못 사용해
+    // (예: 범계 한식집인데 "서울 성동구 패션 전문점"으로) 표시되는 버그가 있었다.
+    // 이제 로그인 사장님의 실제 매장 정보를 컨텍스트로 DeepSeek에 주입해 생성한다.
     const handleAiGenerate = async () => {
         setIsAiGenerating(true);
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        const store = getLocalStoreProfile();
         const foodText = formData.provideFood ? "방문 시 정성껏 준비한 음식도 함께 제공해 드릴 예정입니다." : "";
-        const budgetText = formData.budget ? `\n\n📌 제안 금액: ${Number(formData.budget).toLocaleString()}원` : "";
-        
-        const aiMessage = `안녕하세요, ${influencer.name}님! \n\n${influencer.location}에 위치한 저희 매장은 ${influencer.niche[0]} 전문점으로, ${influencer.name}님의 평소 리뷰 스타일이 저희 매장의 분위기와 너무 잘 어울려 연락드렸습니다.\n\n이번에 저희 신메뉴 출시에 맞춰 ${formData.type}을 제안드리고 싶습니다. ${foodText}${budgetText}\n\n긍정적인 검토 부탁드리며, 수락 시 이메일에 첨부된 버튼을 눌러주시면 감사하겠습니다.\n\n감사합니다.`;
-        setFormData(prev => ({ ...prev, message: aiMessage }));
-        setIsAiGenerating(false);
+        const budgetText = formData.budget ? `제안 금액은 ${Number(formData.budget).toLocaleString()}원입니다.` : "";
+
+        try {
+            const instruction =
+                `다음 정보를 바탕으로 인플루언서에게 보낼 협업 제안 메시지를 한국어로 작성해줘.\n` +
+                `- 인플루언서 활동명: ${influencer.name}\n` +
+                `- 인플루언서 분야: ${(influencer.niche && influencer.niche[0]) || ''}\n` +
+                `- 협업 방식: ${formData.type}\n` +
+                (formData.budget ? `- 제안 금액: ${Number(formData.budget).toLocaleString()}원\n` : '') +
+                `- 음식 무료 제공: ${formData.provideFood ? '예' : '아니오'}\n` +
+                `반드시 우리 가게(상호/업종/위치) 정보를 정확히 활용하고, 정중하고 매력적으로, ` +
+                `인사말과 끝맺음을 포함해 250자 내외로 작성해줘. 메시지 본문만 출력해.`;
+
+            const response = await fetch(`${FASTAPI_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    role: 'owner',
+                    context: {
+                        storeName: store.storeName,
+                        category: store.category,
+                        location: store.location,
+                    },
+                    messages: [{ role: 'user', content: instruction }],
+                }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (response.ok && data.reply) {
+                setFormData(prev => ({ ...prev, message: data.reply.trim() }));
+                return;
+            }
+            throw new Error(data.detail || 'AI 응답을 받지 못했습니다.');
+        } catch (error) {
+            console.warn('AI 자동 작성 실패, 매장 정보 기반 기본 문구로 대체:', error);
+            const fallback =
+                `안녕하세요, ${influencer.name}님!\n\n` +
+                `${store.location}에서 ${store.category} 매장 「${store.storeName}」을 운영하고 있습니다. ` +
+                `${influencer.name}님의 콘텐츠 스타일이 저희 매장과 잘 어울릴 것 같아 ${formData.type}을 제안드립니다. ` +
+                `${foodText} ${budgetText}`.trim() + `\n\n` +
+                `긍정적으로 검토해 주시면 감사하겠습니다. 감사합니다.`;
+            setFormData(prev => ({ ...prev, message: fallback }));
+        } finally {
+            setIsAiGenerating(false);
+        }
     };
 
     const handleBudgetChange = (e) => {
@@ -76,18 +122,7 @@ export default function InfluencerRequestPage() {
             console.error('Proposal submit failed:', error);
             alert(error.message || '제안 전송에 실패했습니다.');
             setIsSubmitting(false);
-            return;
         }
-        await new Promise(resolve => setTimeout(resolve, 1500));
-
-        // 백엔드 이메일 발송 API 연동 시뮬레이션
-        console.log("📧 이메일 발송 API 호출", {
-            to: "influencer@example.com",
-            proposalDetails: formData
-        });
-
-        alert(`✅ ${influencer.name}님의 이메일로 제안서가 전송되었습니다!\n(수락 시 알림이 전송됩니다)`);
-        navigate('/influencer-matching');
     };
 
     if (!influencer) return <div>인플루언서를 찾을 수 없습니다.</div>;

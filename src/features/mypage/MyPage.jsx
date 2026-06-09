@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useReducedMotion } from 'framer-motion';
 import {
@@ -16,6 +16,7 @@ import {
     ExternalLink,
 } from 'lucide-react';
 import { logout } from '../auth/api/authApi';
+import { fetchLatestAnalysisData } from '../insight/api/analysisApi';
 import { ProfileEditDrawer } from './ProfileEditDrawer';
 import { InquiryModal } from './InquiryModal';
 import { KakaoLinkDrawer } from './KakaoLinkDrawer';
@@ -30,6 +31,17 @@ const PLATFORM_ICONS = { instagram: Instagram, naver: MapPin, kakao: MessageSqua
 const STATUS_CFG = {
     connected:  { dot: 'bg-success',  label: '연동됨',  labelCls: 'text-success' },
     collecting: { dot: 'bg-primary',  label: '수집 중', labelCls: 'text-primary' },
+};
+
+// Spring Category enum 코드 → 한글 라벨 (가게 업종 표시용)
+const CATEGORY_LABELS = {
+    KOREAN: '한식',
+    JAPANESE: '일식',
+    CHINESE: '중식',
+    WESTERN: '양식',
+    CAFE_DESSERT: '카페/디저트',
+    BAR: '주점',
+    ETC: '기타',
 };
 
 // ─── PlatformRow ──────────────────────────────────────────────
@@ -106,6 +118,38 @@ const MyPage = ({ onNavigate, profile }) => {
         { id: 'naver',     name: 'Naver Place', handle: '범계 로데오점', status: 'collecting' },
         { id: 'kakao',     name: '카카오 채널', handle: null, status: 'unlinked' },
     ]);
+
+    // 실제 가게 정보(/auth/me) 반영 — 상호명·업종은 하드코딩 대신 로그인 프로필을 사용
+    useEffect(() => {
+        if (!profile) return;
+        const label = CATEGORY_LABELS[profile.shopCategory] || profile.shopCategory || '';
+        setProfileData((prev) => ({
+            ...prev,
+            storeName: profile.shopName || prev.storeName,
+            storeType: label || prev.storeType,
+        }));
+    }, [profile]);
+
+    // 주력 메뉴 키워드 — 손님분석(DeepSeek) 결과의 페르소나 태그에서 추출 (best-effort)
+    useEffect(() => {
+        let ignore = false;
+        fetchLatestAnalysisData()
+            .then((analysis) => {
+                if (ignore || !analysis) return;
+                const collected = [];
+                (analysis.personas || []).forEach((persona) =>
+                    (persona.tags || []).forEach((tag) => collected.push(tag))
+                );
+                const unique = [...new Set(
+                    collected.map((tag) => String(tag).replace(/^#/, '').trim()).filter(Boolean)
+                )].slice(0, 8);
+                if (unique.length) {
+                    setProfileData((prev) => ({ ...prev, keywords: unique.map((tag) => `#${tag}`) }));
+                }
+            })
+            .catch(() => { /* 분석 결과 없으면 안내용 기본 키워드 유지 */ });
+        return () => { ignore = true; };
+    }, []);
 
     // overlay states
     const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);

@@ -74,8 +74,18 @@ const postJson = async (path, body) => {
 
 export const signup = async (signupData) => postJson('/auth/signup', signupData);
 
+const dedupeStrings = (list) =>
+  [...new Map((list || [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .map((value) => [value.toLowerCase(), value]))
+    .values()];
+
 export const signupInfluencer = async (formData) => {
-  const keywords = [formData.niche, ...(formData.tags || [])].filter(Boolean);
+  // niche(주력 분야)와 tags(추구미 해시태그)를 keywords에 한 번만, 중복 없이 담는다.
+  // 과거에는 keywords = [niche, ...tags] 로 넣어 niche가 두 번 들어가고,
+  // 렌더 단계에서 niches와 또 합쳐지며 #패션이 여러 번 보이는 버그가 있었다.
+  const keywords = dedupeStrings(formData.tags);
   const payload = {
     email: formData.email,
     password: formData.password,
@@ -93,7 +103,7 @@ export const signupInfluencer = async (formData) => {
       niches: formData.niche ? [formData.niche] : [],
       keywords,
       activityAreas: formData.location ? [formData.location] : [],
-      audienceKeywords: formData.tags || [],
+      audienceKeywords: dedupeStrings(formData.tags),
     },
   };
 

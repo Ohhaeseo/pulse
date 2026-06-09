@@ -21,6 +21,8 @@ import { AlertCircle, Loader2, RefreshCw, Search } from 'lucide-react';
 import { MOCK_STORE } from '../../data/marketMockData'; // 가게 좌표는 유지 (추후 API로 교체)
 import { fetchRealMarketData } from './kakaoPlacesService';
 import { fetchMyStoreInfo, fetchAiMarketingActions } from './api/mapInsightApi';
+import { fetchLatestAnalysisData } from './api/analysisApi';
+import { getLocalStoreProfile } from '../influencer/influencerMatchingUtils';
 
 function normalizeMarketError(error) {
     return {
@@ -136,6 +138,20 @@ export default function CommercialAnalysisPage() {
 
         setActionsLoading(true);
         try {
+            // 우리 가게 정보 + 손님 페르소나 컨텍스트를 함께 보내 AI 액션을 가게 맞춤으로 생성한다.
+            const store = getLocalStoreProfile();
+            let personas = [];
+            try {
+                const analysis = await fetchLatestAnalysisData();
+                personas = (analysis?.personas || []).slice(0, 3).map((persona) => ({
+                    nickname: persona.nickname,
+                    summary: persona.summary,
+                    tags: persona.tags || [],
+                }));
+            } catch {
+                /* 손님분석 결과가 없으면 페르소나 없이 진행 */
+            }
+
             const actions = await fetchAiMarketingActions({
                 latitude: report.center?.lat ?? analysisTarget?.lat,
                 longitude: report.center?.lng ?? analysisTarget?.lng,
@@ -147,6 +163,10 @@ export default function CommercialAnalysisPage() {
                     anchorScore: report.anchors?.score ?? 0,
                     anchorType: report.anchors?.typeLabel ?? '',
                 },
+                storeName: store.storeName,
+                storeCategory: store.category,
+                storeAddress: store.location,
+                personas,
             });
 
             // 응답이 도착하는 사이 반경/장소가 바뀌었다면 무시한다.

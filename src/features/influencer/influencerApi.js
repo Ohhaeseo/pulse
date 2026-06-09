@@ -7,6 +7,13 @@ const authHeaders = () => {
         : {};
 };
 
+const dedupeStrings = (list) =>
+    [...new Map((list || [])
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .map((value) => [value.toLowerCase(), value]))
+        .values()];
+
 const mapInfluencer = (item) => {
     const profile = item.influencer;
     const followers = profile.instagramFollowers || profile.youtubeSubscribers || 0;
@@ -19,8 +26,8 @@ const mapInfluencer = (item) => {
         niche: profile.niches?.length ? profile.niches : ['맛집'],
         location: profile.location || '전국',
         activityArea: profile.activityAreas || [],
-        keywords: profile.keywords || [],
-        audienceKeywords: profile.audienceKeywords || [],
+        keywords: dedupeStrings(profile.keywords),
+        audienceKeywords: dedupeStrings(profile.audienceKeywords),
         followers,
         instagramFollowers: profile.instagramFollowers || followers,
         youtubeSubscribers: profile.youtubeSubscribers || 0,

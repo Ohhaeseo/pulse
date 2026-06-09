@@ -1,15 +1,77 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, X, MessageCircle, Bot, MoreHorizontal, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchCurrentProfile } from '../auth/api/authApi';
+import { getLocalStoreProfile } from '../influencer/influencerMatchingUtils';
+import { fetchLatestAnalysisData } from './api/analysisApi';
+
+const FASTAPI_URL = import.meta.env.VITE_FASTAPI_BASE_URL || 'http://127.0.0.1:8000/api';
+const OWNER_GREETING = '안녕하세요, 사장님! 👋\n매장과 손님 분석에 대해 궁금한 점을 언제든 물어보세요.';
+const INFLUENCER_GREETING = '안녕하세요! 👋\n프로필이나 협업 제안에 대해 무엇이든 물어보세요.';
 
 export default function InlineChatInterface() {
     const [isOpen, setIsOpen] = useState(false);
-    const [messages, setMessages] = useState([
-        { role: 'assistant', text: '안녕하세요, 사장님! 👋\n매장 분석 데이터 보시다가 궁금한 점 있으면 언제든 물어보세요.' }
-    ]);
+    const [role, setRole] = useState('owner');
+    const [context, setContext] = useState({});
+    const [messages, setMessages] = useState([{ role: 'assistant', text: OWNER_GREETING }]);
     const [input, setInput] = useState('');
     const [isTyping, setIsTyping] = useState(false);
     const scrollRef = useRef(null);
+
+    // 로그인 사용자(사장님/인플루언서) 컨텍스트 로드.
+    // 로그아웃 시 localStorage가 비워지므로 컨텍스트도 자연히 초기화된다.
+    useEffect(() => {
+        let ignore = false;
+        fetchCurrentProfile()
+            .then((profile) => {
+                if (ignore || !profile) return;
+
+                if (profile.role === 'INFLUENCER') {
+                    const p = profile.influencerProfile || {};
+                    setRole('influencer');
+                    setContext({
+                        displayName: p.displayName || profile.name || '',
+                        bio: p.bio || '',
+                        location: p.location || '',
+                        niches: p.niches || [],
+                        keywords: p.keywords || [],
+                        audienceKeywords: p.audienceKeywords || [],
+                        instagramFollowers: p.instagramFollowers || 0,
+                        avgViews: p.avgViews || 0,
+                    });
+                    setMessages([{ role: 'assistant', text: INFLUENCER_GREETING }]);
+                    return;
+                }
+
+                // 사장님: 가게 기본 정보 + (가능하면) 손님분석 총평/페르소나 주입
+                const store = getLocalStoreProfile();
+                setRole('owner');
+                setContext({
+                    storeName: store.storeName,
+                    category: store.category,
+                    location: store.location,
+                });
+                setMessages([{ role: 'assistant', text: OWNER_GREETING }]);
+
+                fetchLatestAnalysisData()
+                    .then((data) => {
+                        if (ignore || !data) return;
+                        setContext((prev) => ({
+                            ...prev,
+                            storeName: data.store_name || prev.storeName,
+                            storeSummary: data.store_summary || '',
+                            personas: (data.personas || []).map((item) => ({
+                                nickname: item.nickname,
+                                summary: item.summary,
+                                action_recommendation: item.action_recommendation,
+                            })),
+                        }));
+                    })
+                    .catch(() => { /* 분석 결과가 없어도 기본 가게 정보로 동작 */ });
+            })
+            .catch(() => { /* 비로그인/오류 시 기본 사장님 컨텍스트 유지 */ });
+        return () => { ignore = true; };
+    }, []);
 
     // Auto-scroll
     useEffect(() => {
@@ -18,21 +80,39 @@ export default function InlineChatInterface() {
         }
     }, [messages, isOpen]);
 
-    const handleSend = () => {
-        if (!input.trim()) return;
+    const handleSend = async () => {
+        if (!input.trim() || isTyping) return;
         const userMsg = { role: 'user', text: input };
-        setMessages(prev => [...prev, userMsg]);
+        const nextMessages = [...messages, userMsg];
+        setMessages(nextMessages);
         setInput('');
         setIsTyping(true);
 
-        setTimeout(() => {
-            const aiMsg = {
+        try {
+            const response = await fetch(`${FASTAPI_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    role,
+                    context,
+                    messages: nextMessages.map((message) => ({
+                        role: message.role === 'user' ? 'user' : 'assistant',
+                        content: message.text,
+                    })),
+                }),
+            });
+            if (!response.ok) throw new Error(`status ${response.status}`);
+            const data = await response.json();
+            setMessages(prev => [...prev, { role: 'assistant', text: data.reply || '응답을 받지 못했습니다.' }]);
+        } catch (error) {
+            console.error('PULSE AI chat failed:', error);
+            setMessages(prev => [...prev, {
                 role: 'assistant',
-                text: '네, 확인해 드릴게요. \n지금 20대 손님이 지난주보다 15% 늘었어요! 점심 메뉴 구성을 조금 더 가볍게 바꿔보시는 건 어떨까요?'
-            };
-            setMessages(prev => [...prev, aiMsg]);
+                text: '죄송해요, 지금 답변을 가져오지 못했어요. 잠시 후 다시 시도해주세요.',
+            }]);
+        } finally {
             setIsTyping(false);
-        }, 1200);
+        }
     };
 
     return (

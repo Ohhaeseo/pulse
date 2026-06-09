@@ -81,6 +81,34 @@ export default function InfluencerSignupForm({ onSwitch }) {
         setFormData({ ...formData, tags: formData.tags.filter(t => t !== tagToRemove) });
     };
 
+    // 프로필 사진: 256px로 리사이즈 후 Base64(data URL)로 저장해 DB에 그대로 보관한다.
+    const handleImageChange = (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        if (!file.type.startsWith('image/')) {
+            alert('이미지 파일만 업로드할 수 있습니다.');
+            return;
+        }
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            const img = new Image();
+            img.onload = () => {
+                const MAX = 256;
+                const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+                const w = Math.round(img.width * scale);
+                const h = Math.round(img.height * scale);
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                setFormData((prev) => ({ ...prev, profileImage: dataUrl, profileImageUrl: dataUrl }));
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+
     return (
         <div className="form-wrapper fade-in w-full max-w-md mx-auto custom-scrollbar overflow-y-auto" style={{ maxHeight: '85vh', paddingRight: '10px' }}>
             
@@ -179,12 +207,17 @@ export default function InfluencerSignupForm({ onSwitch }) {
                     <div className="flex flex-col gap-5 animate-fade-in-up">
                         {/* Profile Image UI */}
                         <div className="flex flex-col items-center">
-                            <div className="w-[88px] h-[88px] rounded-full bg-[#F2F4F6] border-2 border-dashed border-[#D1D6DB] flex items-center justify-center text-[#8B95A1] cursor-pointer hover:border-[#002B7A] hover:bg-[#E8F3FF] transition-colors relative">
-                                <Camera size={24} />
+                            <label className="w-[88px] h-[88px] rounded-full bg-[#F2F4F6] border-2 border-dashed border-[#D1D6DB] flex items-center justify-center text-[#8B95A1] cursor-pointer hover:border-[#002B7A] hover:bg-[#E8F3FF] transition-colors relative overflow-hidden">
+                                {formData.profileImage ? (
+                                    <img src={formData.profileImage} alt="프로필 미리보기" className="w-full h-full object-cover" />
+                                ) : (
+                                    <Camera size={24} />
+                                )}
                                 <div className="absolute -bottom-1 -right-1 bg-white p-1 rounded-full shadow-sm border border-[#F2F4F6]">
                                     <div className="w-5 h-5 bg-[#002B7A] rounded-full flex items-center justify-center text-white font-bold text-xs">+</div>
                                 </div>
-                            </div>
+                                <input type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                            </label>
                             <span className="text-[12px] text-[#8B95A1] mt-2">프로필 사진 업로드 (선택)</span>
                         </div>
 

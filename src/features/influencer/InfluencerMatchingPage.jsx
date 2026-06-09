@@ -26,28 +26,35 @@ export default function InfluencerMatchingPage() {
     useEffect(() => {
         let ignore = false;
 
-        fetchInfluencerRecommendations()
-            .then((data) => {
-                if (ignore) return;
-                setStoreInsight(data.storeInsight);
-                setApiInfluencers(data.influencers);
-            })
-            .catch(() => fetchLatestAnalysisData())
-            .then((analysisData) => {
-                if (!analysisData) return;
-                if (!ignore) setStoreInsight(buildStoreInsightFromAnalysisData(analysisData));
-            })
-            .catch(() => {
-                if (!ignore) setStoreInsight(getLocalStoreProfile());
-            });
+        // 추천 목록(Spring)과 손님분석(DeepSeek)을 함께 불러와,
+        // Spring 점수를 손님분석 키워드 + 부분일치 기준으로 재계산한다.
+        Promise.all([
+            fetchInfluencerRecommendations().catch(() => null),
+            fetchLatestAnalysisData().catch(() => null),
+        ]).then(([recommendation, analysisData]) => {
+            if (ignore) return;
+
+            const insight = analysisData
+                ? buildStoreInsightFromAnalysisData(analysisData)
+                : getLocalStoreProfile();
+            setStoreInsight(insight);
+
+            if (recommendation?.influencers?.length) {
+                // 원본 목록만 저장하고, 점수는 아래 useMemo에서 손님분석 인사이트로 계산한다.
+                setApiInfluencers(recommendation.influencers);
+            }
+        });
 
         return () => {
             ignore = true;
         };
     }, []);
 
+    // storeInsight가 갱신되면(예: 분석 결과 도착) 재점수도 반영한다.
     const scoredInfluencers = useMemo(
-        () => apiInfluencers || scoreInfluencers(INFLUENCER_DATA, storeInsight),
+        () => (apiInfluencers
+            ? scoreInfluencers(apiInfluencers, storeInsight)
+            : scoreInfluencers(INFLUENCER_DATA, storeInsight)),
         [apiInfluencers, storeInsight]
     );
 
