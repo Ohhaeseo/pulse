@@ -146,12 +146,23 @@ class MapInsightSummary(BaseModel):
     anchorType: str = ""
 
 
+class MapInsightPersona(BaseModel):
+    nickname: Optional[str] = None
+    summary: Optional[str] = None
+    tags: List[str] = Field(default_factory=list)
+
+
 class MapInsightActionsRequest(BaseModel):
     latitude: float
     longitude: float
     radius: int
     category: str
     marketSummary: MapInsightSummary
+    # 가게·손님 페르소나 컨텍스트 (FE → Spring → FastAPI로 전달)
+    storeName: Optional[str] = None
+    storeCategory: Optional[str] = None
+    storeAddress: Optional[str] = None
+    personas: List[MapInsightPersona] = Field(default_factory=list)
 
 
 class MapInsightCta(BaseModel):
@@ -205,3 +216,37 @@ class PromotionTaskStatusResponse(BaseModel):
     progress: int
     message: str
     data: Optional[PromotionVideoResult] = None
+
+
+class ChatMessage(BaseModel):
+    role: str           # "user" | "assistant"
+    content: str
+
+
+class ChatRequest(BaseModel):
+    """
+    PULSE AI 챗봇 요청 DTO.
+    role 에 따라 사장님(가게/손님분석) 또는 인플루언서(프로필) 컨텍스트를 주입한다.
+    """
+    role: str = "owner"  # owner | influencer
+    context: Dict[str, Any] = Field(default_factory=dict)
+    messages: List[ChatMessage] = Field(default_factory=list)
+
+
+class ChatResponse(BaseModel):
+    reply: str
+
+
+class SearchSignalRequest(BaseModel):
+    """대시보드 '오늘의 기회 신호' — 추적할 후보 키워드(없으면 기본 세트 사용)."""
+    candidates: List[str] = Field(default_factory=list)
+    category: Optional[str] = None  # 가게 업종(한식/카페 등) — 음식 키워드 보강용
+
+
+class SearchSignalResponse(BaseModel):
+    keyword: str
+    signal: str          # 검색 급증 / 검색 증가 / 관심 유지 / 검색 감소
+    intensity: str       # high | medium | low
+    source: str = "네이버 DataLab"
+    period: str = "최근 30일"
+    growthRate: Optional[float] = None

@@ -10,6 +10,8 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 
 from app.schemas.dtos import (
     AnalysisRequestRequest,
+    ChatRequest,
+    ChatResponse,
     GenerateReviewRepliesRequest,
     GenerateReviewRepliesResponse,
     MapInsightActionsRequest,
@@ -19,11 +21,14 @@ from app.schemas.dtos import (
     PromotionPromptRecommendationResponse,
     PromotionTaskStatusResponse,
     ReviewSnapshotResponse,
+    SearchSignalRequest,
+    SearchSignalResponse,
     TaskResponse,
     TaskStatusResponse,
 )
 from app.services.analysis_service import AnalysisService
 from app.services.crawler_service import CrawlerService
+from app.services.datalab_service import DataLabService
 from app.services.llm_service import LLMService
 from app.services.mongo_service import MongoService
 from app.services.promotion_video_service import PromotionVideoService
@@ -42,6 +47,7 @@ analysis_service = AnalysisService()
 llm_service = LLMService()
 mongo_service = MongoService()
 promotion_video_service = PromotionVideoService()
+datalab_service = DataLabService()
 
 
 def _utc_now_iso() -> str:
@@ -410,6 +416,39 @@ async def generate_review_replies(req: GenerateReviewRepliesRequest):
     except Exception as exc:
         logger.error("Failed to generate review replies: %s", exc)
         raise HTTPException(status_code=500, detail=f"답변 생성 실패: {exc}")
+
+
+@router.post("/chat", response_model=ChatResponse)
+async def chat(req: ChatRequest):
+    """
+    PULSE AI 챗봇. role(owner/influencer)에 맞춰 로그인 사용자의 실제
+    가게/손님분석 또는 인플루언서 프로필을 컨텍스트로 주입해 DeepSeek로 응답한다.
+    """
+    try:
+        reply = await asyncio.to_thread(
+            llm_service.generate_contextual_reply,
+            req.role,
+            req.context,
+            [message.model_dump() for message in req.messages],
+        )
+        return ChatResponse(reply=reply)
+    except Exception as exc:
+        logger.error("Failed to generate chat reply: %s", exc)
+        raise HTTPException(status_code=500, detail=f"챗봇 응답 생성 실패: {exc}")
+
+
+@router.post("/insights/search-signal", response_model=SearchSignalResponse)
+async def get_search_signal(req: SearchSignalRequest):
+    """
+    네이버 DataLab 검색어 트렌드 기반 '오늘의 기회 신호'.
+    후보 키워드 중 최근 상승폭이 가장 큰 키워드와 추세를 반환한다.
+    """
+    try:
+        result = await asyncio.to_thread(datalab_service.fetch_search_signal, req.candidates, req.category)
+        return SearchSignalResponse(**result)
+    except Exception as exc:
+        logger.error("Failed to fetch search signal: %s", exc)
+        raise HTTPException(status_code=502, detail=f"검색 트렌드 조회 실패: {exc}")
 
 
 @router.post("/map-insight/actions", response_model=MapInsightActionsResponse)

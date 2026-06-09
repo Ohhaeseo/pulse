@@ -500,6 +500,78 @@ JSON 없이 텍스트만 출력하세요.
             return "죄송합니다. 오류가 발생하여 응답을 생성할 수 없습니다."
 
     @staticmethod
+    def _build_chat_system_prompt(role: str, context: Dict[str, Any]) -> str:
+        """
+        role(owner/influencer)에 따라 가게/손님분석 또는 인플루언서 프로필을
+        시스템 프롬프트로 주입한다. 로그인 사용자의 실제 정보를 '학습'시키는 역할.
+        """
+        context = context or {}
+
+        if role == "influencer":
+            niches = ", ".join(context.get("niches") or []) or "미입력"
+            keywords = ", ".join(context.get("keywords") or []) or "미입력"
+            audience = ", ".join(context.get("audienceKeywords") or []) or "미입력"
+            return (
+                "당신은 PULSE의 AI 파트너 매니저입니다. 인플루언서(크리에이터)의 활동과 협업을 돕습니다.\n"
+                "아래 [내 프로필]만 근거로 한국어로 친근하고 간결하게(2~4문장) 답하세요.\n"
+                "제공된 정보에 없는 수치나 사실은 지어내지 말고, 모르면 솔직히 말하세요.\n\n"
+                "[내 프로필]\n"
+                f"- 활동명: {context.get('displayName') or '미입력'}\n"
+                f"- 소개: {context.get('bio') or '미입력'}\n"
+                f"- 주 활동 지역: {context.get('location') or '미입력'}\n"
+                f"- 분야: {niches}\n"
+                f"- 키워드: {keywords}\n"
+                f"- 타깃 오디언스: {audience}\n"
+                f"- 인스타 팔로워: {context.get('instagramFollowers') or 0}\n"
+                f"- 평균 조회수: {context.get('avgViews') or 0}\n"
+            )
+
+        # 기본: 사장님(owner)
+        persona_lines = []
+        for persona in (context.get("personas") or [])[:3]:
+            nickname = persona.get("nickname") or persona.get("name") or "고객 그룹"
+            summary = persona.get("summary") or ""
+            action = persona.get("action_recommendation") or ""
+            persona_lines.append(f"  · {nickname}: {summary} (제안: {action})".strip())
+        personas_text = "\n".join(persona_lines) if persona_lines else "  · 아직 손님 분석 데이터가 없습니다."
+
+        return (
+            "당신은 PULSE의 AI 마케팅 비서입니다. 외식업 사장님의 매장 운영과 마케팅을 돕습니다.\n"
+            "아래 [가게 정보]와 [손님 분석]만 근거로, 사장님 질문에 한국어로 친근하고 간결하게(2~4문장) 답하세요.\n"
+            "- 제공된 정보에 없는 수치나 사실은 지어내지 마세요. 모르면 솔직히 말하고 손님 분석 실행을 권하세요.\n"
+            "- 추상적인 조언보다 바로 실행할 수 있는 구체적 제안을 우선하세요.\n\n"
+            "[가게 정보]\n"
+            f"- 상호: {context.get('storeName') or '미입력'}\n"
+            f"- 업종: {context.get('category') or '미입력'}\n"
+            f"- 위치: {context.get('location') or '미입력'}\n\n"
+            "[손님 분석]\n"
+            f"- 총평: {context.get('storeSummary') or '아직 분석 데이터가 없습니다.'}\n"
+            f"- 페르소나:\n{personas_text}\n"
+        )
+
+    def generate_contextual_reply(
+        self,
+        role: str,
+        context: Dict[str, Any],
+        messages: List[Dict[str, str]],
+    ) -> str:
+        """
+        로그인 사용자(사장님/인플루언서) 컨텍스트를 주입해 챗봇 응답을 생성한다.
+        """
+        system_prompt = self._build_chat_system_prompt(role, context)
+        chat_messages = [{"role": "system", "content": system_prompt}]
+        for message in messages[-10:]:
+            msg_role = message.get("role")
+            content = (message.get("content") or "").strip()
+            if msg_role in ("user", "assistant") and content:
+                chat_messages.append({"role": msg_role, "content": content})
+
+        if len(chat_messages) == 1:
+            return "무엇을 도와드릴까요? 매장 운영이나 마케팅에 대해 물어보세요."
+
+        return self.chat_completion(chat_messages)
+
+    @staticmethod
     def _find_matching_exception_cases(review_text: str, exception_cases: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         lowered = (review_text or "").lower()
         matches = []
@@ -591,9 +663,33 @@ JSON 없이 텍스트만 출력하세요.
         radius = payload.get("radius")
         category = payload.get("category")
 
+        # 가게 + 손님 페르소나 컨텍스트 (있을 때만 프롬프트에 반영)
+        store_name = payload.get("storeName") or ""
+        store_category = payload.get("storeCategory") or ""
+        store_address = payload.get("storeAddress") or ""
+        store_block = (
+            f"- 상호: {store_name or '미입력'}\n"
+            f"- 업종: {store_category or category}\n"
+            f"- 위치: {store_address or '미입력'}"
+        )
+
+        persona_lines = []
+        for persona in (payload.get("personas") or [])[:3]:
+            nickname = persona.get("nickname") or "고객 그룹"
+            summary = persona.get("summary") or ""
+            tags = ", ".join(persona.get("tags") or [])
+            persona_lines.append(f"- {nickname}: {summary} (특징: {tags})".strip())
+        persona_block = "\n".join(persona_lines) if persona_lines else "- 아직 손님 분석 데이터가 없습니다."
+
         prompt = f"""
 당신은 동네 소상공인을 위한 상권 분석 기반 마케팅 컨설턴트입니다.
-아래 상권 요약만 근거로 사장님이 이번 주에 바로 실행할 수 있는 마케팅 액션 2개를 제안하세요.
+아래 [우리 가게 정보], [손님 페르소나], [상권 요약]을 종합해 사장님이 이번 주에 바로 실행할 수 있는 마케팅 액션 2개를 제안하세요.
+
+[우리 가게 정보]
+{store_block}
+
+[손님 페르소나]
+{persona_block}
 
 [상권 요약]
 - 분석 반경: {radius}m
@@ -604,10 +700,12 @@ JSON 없이 텍스트만 출력하세요.
 - 상권 유형: {anchor_type}
 
 [작성 규칙]
-1. 경쟁 업소 수가 30개 이상이면 USP, 메뉴 사진, 리뷰 차별화처럼 방어형 차별화 액션을 포함하세요.
-2. 상권 유형에 맞는 고객층을 구체적으로 가정하세요. 예: 역세권은 출퇴근/이동 수요, 학원가는 학생/학부모 수요.
-3. 추상적인 조언보다 실제로 설정하거나 게시할 수 있는 작업을 제안하세요.
-4. 반드시 JSON만 출력하세요. Markdown code block은 쓰지 마세요.
+1. 우리 가게의 실제 업종과 위치를 정확히 반영하세요. 엉뚱한 업종/지역으로 가정하지 마세요.
+2. 손님 페르소나가 있으면, 그 손님의 니즈·키워드를 공략하는 액션을 우선 제안하세요.
+3. 경쟁 업소 수가 30개 이상이면 USP, 메뉴 사진, 리뷰 차별화처럼 방어형 차별화 액션을 포함하세요.
+4. 상권 유형에 맞는 고객층을 구체적으로 가정하세요. 예: 역세권은 출퇴근/이동 수요, 학원가는 학생/학부모 수요.
+5. 추상적인 조언보다 실제로 설정하거나 게시할 수 있는 작업을 제안하세요.
+6. 반드시 JSON만 출력하세요. Markdown code block은 쓰지 마세요.
 
 [JSON 형식]
 {{
