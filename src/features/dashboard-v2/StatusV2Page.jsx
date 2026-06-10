@@ -3,13 +3,11 @@ import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { RefreshCw, AlertTriangle } from 'lucide-react';
 import {
     fetchDashboardData,
+    dismissCardOnServer,
+    resolveStoreId,
     getLocalDismissedIds,
     saveLocalDismissedId,
 } from './services/dashboardV2Api';
-import { fetchLatestAnalysisData } from '../insight/api/analysisApi';
-import { buildStoreInsightFromAnalysisData, getLocalStoreProfile } from '../influencer/influencerMatchingUtils';
-
-const FASTAPI_URL = import.meta.env.VITE_FASTAPI_BASE_URL || 'http://127.0.0.1:8000/api';
 import V2Skeleton from './components/V2Skeleton';
 import V2ReelsImpactHero from './components/V2ReelsImpactHero';
 import V2TodaySignalCard from './components/V2TodaySignalCard';
@@ -64,9 +62,6 @@ const LOADING_TIPS = [
     '가장 효율적인 마케팅 액션을 고민 중이에요 🤔',
 ];
 
-// 손님분석 페르소나 표시용 이모지 팔레트 (콘텐츠 장식용, 순환 배정)
-const PERSONA_EMOJIS = ['🙋', '🍽️', '☕', '✨', '💬', '🛍️'];
-
 const StatusV2Page = ({ onNavigate }) => {
     const shouldReduceMotion = useReducedMotion();
     const [data, setData] = useState(null);
@@ -75,6 +70,7 @@ const StatusV2Page = ({ onNavigate }) => {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
     const [loadingTip, setLoadingTip] = useState('');
     const [error, setError] = useState(null);
+    const [storeId, setStoreId] = useState(null);
     const [dismissedIds, setDismissedIds] = useState(() => getLocalDismissedIds());
 
     // 로딩 지연 안내
@@ -93,47 +89,17 @@ const StatusV2Page = ({ onNavigate }) => {
         setError(null);
 
         try {
-            // storeId: 실제 연동 시 인증 컨텍스트(userProfile 등)에서 주입
-            const response = await fetchDashboardData('store_123', isRefreshAction);
+            // 인증 사용자의 실제 storeId 해석(최초 1회 캐시). 서버 집계 엔드포인트가
+            // todaySignal(DataLab)·personas·weather·todayBrief·actions를 한 번에 내려준다.
+            let id = storeId;
+            if (!id) {
+                id = await resolveStoreId();
+                if (id) setStoreId(id);
+            }
+
+            const response = await fetchDashboardData(id, isRefreshAction);
             if (response.success) {
-                // 손님 페르소나 위젯은 실제 손님분석(DeepSeek) 결과로 교체 (best-effort).
-                let analysis = null;
-                try {
-                    analysis = await fetchLatestAnalysisData();
-                } catch {
-                    /* 분석 결과 없음 — mock 페르소나 유지 */
-                }
-                if (analysis?.personas?.length && response.data.insights) {
-                    response.data.insights.personas = analysis.personas.slice(0, 3).map((persona, index) => ({
-                        emoji: PERSONA_EMOJIS[index % PERSONA_EMOJIS.length],
-                        label: persona.nickname || persona.tags?.[0] || '단골 손님',
-                        detail: persona.summary || (persona.tags || []).join(', '),
-                    }));
-                }
-
-                // '오늘의 기회 신호'는 네이버 DataLab 검색어 트렌드로 교체 (best-effort).
-                // 후보 키워드는 손님분석 키워드(없으면 가게 업종 기반)에서 추출한다.
-                try {
-                    const insight = analysis
-                        ? buildStoreInsightFromAnalysisData(analysis)
-                        : getLocalStoreProfile();
-                    const signalResponse = await fetch(`${FASTAPI_URL}/insights/search-signal`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            candidates: insight?.keywords || [],
-                            category: insight?.category || '',
-                        }),
-                    });
-                    if (signalResponse.ok) {
-                        const signal = await signalResponse.json();
-                        response.data.todaySignal = { state: 'default', ...signal };
-                    }
-                } catch {
-                    /* DataLab 미연동/오류 — mock 신호 유지 */
-                }
-
-                // 서버 dismissedIds와 localStorage 병합 (서버 정본 우선, MVP+1 연동 대비)
+                // 서버 dismissedIds(정본)와 localStorage(폴백)를 병합
                 const serverDismissed = response.data.dismissedIds || [];
                 const localDismissed = getLocalDismissedIds();
                 const merged = [...new Set([...serverDismissed, ...localDismissed])];
@@ -147,7 +113,7 @@ const StatusV2Page = ({ onNavigate }) => {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, []);
+    }, [storeId]);
 
     useEffect(() => {
         loadData();
@@ -170,9 +136,11 @@ const StatusV2Page = ({ onNavigate }) => {
 
     const handleDismiss = useCallback((id) => {
         if (!id) return;
+        // 낙관적 업데이트 + localStorage 폴백, 서버에 영속화(best-effort)
         saveLocalDismissedId(id);
         setDismissedIds((prev) => [...new Set([...prev, id])]);
-    }, []);
+        if (storeId) dismissCardOnServer(storeId, id);
+    }, [storeId]);
 
     const baseTimeLabel =
         data?.metadata?.baseTime ? formatBaseTime(data.metadata.baseTime) : null;
