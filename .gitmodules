@@ -1,9 +1,9 @@
 [submodule "pulse_FE"]
 	path = pulse_FE
-	url = https://github.com/Ohhaeseo/pulse.git
+	url = https://github.com/YJlang/PULSE.git
 [submodule "pulse_python"]
 	path = pulse_python
-	url = https://github.com/Ohhaeseo/pulse.git
+	url = https://github.com/YJlang/PULSE.git
 [submodule "pulse_spring"]
 	path = pulse_spring
-	url = https://github.com/Ohhaeseo/pulse.git
+	url = https://github.com/YJlang/PULSE.git
