@@ -24,5 +24,12 @@ fastapi:
 kakao:
   rest-api-key: ${KAKAO_REST_API_KEY:}
 
+# 날씨(대시보드 insights.weather) — 재난안전데이터공유플랫폼 단기예보(SKY/PTY)
+# api-id/service-key 미설정 시 weather=null로 graceful 처리됨
+weather:
+  base-url: ${WEATHER_BASE_URL:https://www.safetydata.go.kr/V2/api}
+  api-id: ${WEATHER_API_ID:}
+  service-key: ${WEATHER_API_KEY:}
+
 server:
   port: ${SERVER_PORT:8080}

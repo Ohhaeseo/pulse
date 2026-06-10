@@ -157,6 +157,48 @@ public class FastApiClient {
         }
     }
 
+    /**
+     * 네이버 DataLab 검색어 트렌드 기반 '오늘의 기회 신호'.
+     * 실패 시 null을 반환해 호출부가 해당 섹션만 graceful 처리하도록 한다.
+     * 반환 맵: {keyword, signal, intensity, source, period, growthRate}
+     */
+    public Map<String, Object> fetchSearchSignal(List<String> candidates, String category) {
+        Map<String, Object> request = new HashMap<>();
+        request.put("candidates", candidates == null ? List.of() : candidates);
+        request.put("category", category);
+
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    fastApiBaseUrl + "/insights/search-signal",
+                    HttpMethod.POST,
+                    new HttpEntity<>(request, jsonHeaders()),
+                    new ParameterizedTypeReference<>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * 최신 손님분석(DeepSeek) 결과. 페르소나/매장 요약/키워드 소스로 사용한다.
+     * 분석 결과가 없거나(404) 오류면 null.
+     * 반환 맵: {store_name, store_summary, personas:[{nickname, tags[], summary, ...}], ...}
+     */
+    public Map<String, Object> fetchLatestAnalysis() {
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    fastApiBaseUrl + "/analysis/latest",
+                    HttpMethod.GET,
+                    null,
+                    new ParameterizedTypeReference<>() {}
+            );
+            return response.getBody();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
     private HttpHeaders jsonHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
